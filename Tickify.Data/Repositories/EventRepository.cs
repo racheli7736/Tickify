@@ -74,6 +74,9 @@ public class EventRepository : IEventRepository
     public Task<bool> HasSoldSeatsAsync(int id, CancellationToken ct) =>
         _db.Seats.AsNoTracking().AnyAsync(s => s.EventId == id && s.Status == SeatStatus.Sold, ct);
 
+    public Task<bool> HasOrdersAsync(int id, CancellationToken ct) =>
+        _db.Orders.AsNoTracking().AnyAsync(o => o.EventId == id, ct);
+
     public async Task AddAsync(Event ev, CancellationToken ct) =>
         await _db.Events.AddAsync(ev, ct);
 
