@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Tickify.Data;
 using Tickify.Service.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,6 +15,9 @@ if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default
 
 builder.Services.Configure<JwtSettings>(jwtSection);
 
+builder.Services.AddDbContext<AppDbContext>(o =>
+    o.UseSqlServer(builder.Configuration.GetConnectionString("Default")));
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -21,6 +26,13 @@ var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
+    // Create / update the database (and seed data) automatically on startup.
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        await db.Database.MigrateAsync();
+    }
+
     app.UseSwagger();
     app.UseSwaggerUI();
 }
