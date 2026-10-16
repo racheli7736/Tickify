@@ -1,4 +1,3 @@
-using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Tickify.Core.Common;
 using Tickify.Core.DTOs.Common;
@@ -8,6 +7,7 @@ using Tickify.Core.Enums;
 using Tickify.Core.Exceptions;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
+using Tickify.Service.Mapping;
 
 namespace Tickify.Service.Services;
 
@@ -22,7 +22,6 @@ public class OrderService : IOrderService
     private readonly IEventRepository _events;
     private readonly ISeatRepository _seats;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
     private readonly ILogger<OrderService> _logger;
 
     public OrderService(
@@ -30,14 +29,12 @@ public class OrderService : IOrderService
         IEventRepository events,
         ISeatRepository seats,
         IUnitOfWork unitOfWork,
-        IMapper mapper,
         ILogger<OrderService> logger)
     {
         _orders = orders;
         _events = events;
         _seats = seats;
         _unitOfWork = unitOfWork;
-        _mapper = mapper;
         _logger = logger;
     }
 
@@ -110,7 +107,7 @@ public class OrderService : IOrderService
             "Order {OrderId} created by user {UserId} for event {EventId}, seats {SeatsSummary}",
             order.Id, userId, ev.Id, order.SeatsSummary);
 
-        var response = _mapper.Map<OrderResponse>(order);
+        var response = order.ToResponse();
         response.EventName = ev.Name;
         response.EventStartsAt = ev.StartsAt;
         return ServiceResult<OrderResponse>.Success(response);
@@ -123,7 +120,7 @@ public class OrderService : IOrderService
 
         return ServiceResult<PagedResult<OrderResponse>>.Success(new PagedResult<OrderResponse>
         {
-            Items = _mapper.Map<List<OrderResponse>>(page.Items),
+            Items = page.Items.Select(o => o.ToResponse()).ToList(),
             Page = page.Page,
             PageSize = page.PageSize,
             TotalCount = page.TotalCount
@@ -139,7 +136,7 @@ public class OrderService : IOrderService
         if (!isAdmin && order.UserId != userId)
             return Fail(ErrorType.Forbidden, "You do not have access to this order.");
 
-        return ServiceResult<OrderResponse>.Success(_mapper.Map<OrderResponse>(order));
+        return ServiceResult<OrderResponse>.Success(order.ToResponse());
     }
 
     public async Task<ServiceResult> CancelAsync(int userId, int orderId, CancellationToken ct)

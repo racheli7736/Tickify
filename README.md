@@ -45,5 +45,24 @@ seat, the second `SaveChanges` throws `DbUpdateConcurrencyException` (translated
 ### Notes
 
 - Timestamps are `timestamptz`; the API only writes UTC values.
-- Event search uses `ILIKE` (case-insensitive); category names are unique case-sensitively.
+- Event search uses `ILIKE` (case-insensitive). Category names are unique ignoring case, enforced by a unique index on `lower("Name")`; the migration refuses to run (without touching any data) if such duplicates already exist.
+- Mapping between entities and DTOs is manual (extension methods in `Tickify.Service/Mapping`); there is no AutoMapper dependency.
 - The seed migration advances the identity sequences after inserting rows with explicit ids.
+
+## Tests
+
+```powershell
+dotnet test
+```
+
+Unit tests always run. The PostgreSQL integration tests (two `DbContext`s racing for the same seat, two concurrent
+purchases through `OrderService`, case-insensitive category names) are **skipped** unless you provide a connection
+string to a dedicated test database:
+
+```powershell
+$env:TICKIFY_TEST_CONNECTION = "Host=localhost;Port=5433;Database=tickify_test;Username=postgres;Password=<your password>"
+dotnet test
+```
+
+Safety: the database name must end with `_test`, otherwise the tests refuse to run. The test database is dropped and
+re-created (migrations + seed data) at the start and dropped at the end, so it never affects the development database.

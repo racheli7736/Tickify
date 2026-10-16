@@ -10,6 +10,7 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
     {
         builder.HasKey(c => c.Id);
         builder.Property(c => c.Name).IsRequired().HasMaxLength(100);
-        builder.HasIndex(c => c.Name).IsUnique();
+        // Case-insensitive uniqueness is enforced by a PostgreSQL expression index on lower("Name"),
+        // created with raw SQL in the CaseInsensitiveCategoryNames migration (EF 8 cannot model it).
     }
 }
