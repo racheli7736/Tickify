@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Tickify.API.Extensions;
+using Tickify.API.Middleware;
 using Tickify.Data;
 using Tickify.Service.Options;
 
@@ -26,10 +27,20 @@ builder.Services
 // Enums travel as readable strings ("Admin", "Available") instead of numbers.
 builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+// One error shape for every failure (status, title, detail, correlationId): controllers' Problem(),
+// ModelState 400s, 401/403 status pages and the exception middleware all go through ProblemDetails.
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails =
+    context => context.ProblemDetails.Extensions["correlationId"] = context.HttpContext.GetCorrelationId());
+
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Outermost, so every log line of a request (including the Error from the exception middleware) carries the id.
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
