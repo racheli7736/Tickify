@@ -26,6 +26,7 @@
     <ProjectReference Include="..\Tickify.Core\Tickify.Core.csproj" />
     <ProjectReference Include="..\Tickify.Service\Tickify.Service.csproj" />
     <ProjectReference Include="..\Tickify.Data\Tickify.Data.csproj" />
+    <ProjectReference Include="..\Tickify.API\Tickify.API.csproj" />
   </ItemGroup>
 
 </Project>
