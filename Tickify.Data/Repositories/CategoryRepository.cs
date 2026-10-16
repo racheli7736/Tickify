@@ -24,7 +24,9 @@ public class CategoryRepository : ICategoryRepository
     }
 
     public Task<bool> NameExistsAsync(string name, int? excludeId, CancellationToken ct) =>
-        _db.Categories.AsNoTracking().AnyAsync(c => c.Name == name && (excludeId == null || c.Id != excludeId), ct);
+        // ToLower() translates to lower("Name"), matching the unique expression index.
+        _db.Categories.AsNoTracking().AnyAsync(
+            c => c.Name.ToLower() == name.ToLower() && (excludeId == null || c.Id != excludeId), ct);
 
     public Task<bool> HasEventsAsync(int id, CancellationToken ct) =>
         _db.EventCategories.AsNoTracking().AnyAsync(ec => ec.CategoryId == id, ct);

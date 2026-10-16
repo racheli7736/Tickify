@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tickify.Core.Entities;
+using Tickify.Data.Seed;
 
 namespace Tickify.Data;
 
@@ -17,5 +18,6 @@ public class AppDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
+        SeedData.Seed(modelBuilder);
     }
 }
