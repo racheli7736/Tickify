@@ -12,6 +12,7 @@ public class SeatConfiguration : IEntityTypeConfiguration<Seat>
         builder.Property(s => s.Status).HasConversion<string>().HasMaxLength(20);
 
         // Optimistic concurrency token: the heart of the "two buyers, one seat" protection.
+        // For a uint property Npgsql maps this to PostgreSQL's xmin system column.
         builder.Property(s => s.RowVersion).IsRowVersion();
 
         builder.HasIndex(s => new { s.EventId, s.Row, s.Number }).IsUnique();

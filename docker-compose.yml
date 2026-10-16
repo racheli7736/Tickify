@@ -1,0 +1,18 @@
+# Local PostgreSQL for Tickify. The password is read from the environment, never stored in the repo:
+#   PowerShell:  $env:TICKIFY_DB_PASSWORD = "<choose a password>"
+#   bash:        export TICKIFY_DB_PASSWORD="<choose a password>"
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tickify-db
+    environment:
+      POSTGRES_DB: tickify
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${TICKIFY_DB_PASSWORD:?Set TICKIFY_DB_PASSWORD first}
+    ports:
+      - "5433:5432"
+    volumes:
+      - tickify-pgdata:/var/lib/postgresql/data
+
+volumes:
+  tickify-pgdata:

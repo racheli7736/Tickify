@@ -2,9 +2,9 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Tickify.Data;
 
 #nullable disable
@@ -12,7 +12,7 @@ using Tickify.Data;
 namespace Tickify.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20261015204116_SeedData")]
+    [Migration("20261016092134_SeedData")]
     partial class SeedData
     {
         /// <inheritdoc />
@@ -21,22 +21,22 @@ namespace Tickify.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "8.0.11")
-                .HasAnnotation("Relational:MaxIdentifierLength", 128);
+                .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Tickify.Core.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -77,34 +77,34 @@ namespace Tickify.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
+                        .HasColumnType("character varying(2000)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<DateTime>("StartsAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<decimal>("TicketPrice")
                         .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<string>("Venue")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
 
@@ -148,10 +148,10 @@ namespace Tickify.Data.Migrations
             modelBuilder.Entity("Tickify.Core.Entities.EventCategory", b =>
                 {
                     b.Property<int>("EventId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("CategoryId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("EventId", "CategoryId");
 
@@ -186,32 +186,32 @@ namespace Tickify.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("EventId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<string>("SeatsSummary")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.Property<decimal>("TotalPrice")
                         .HasPrecision(10, 2)
-                        .HasColumnType("decimal(10,2)");
+                        .HasColumnType("numeric(10,2)");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.HasKey("Id");
 
@@ -226,32 +226,32 @@ namespace Tickify.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<int>("EventId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("Number")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int?>("OrderId")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
                     b.Property<int>("Row")
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    b.Property<byte[]>("RowVersion")
+                    b.Property<uint>("RowVersion")
                         .IsConcurrencyToken()
-                        .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
 
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 
@@ -269,6 +269,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 1,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -277,6 +278,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 2,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -285,6 +287,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 3,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -293,6 +296,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 4,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -301,6 +305,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 5,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -309,6 +314,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 6,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -317,6 +323,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 7,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -325,6 +332,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 8,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -333,6 +341,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 9,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -341,6 +350,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 10,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -349,6 +359,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 1,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -357,6 +368,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 2,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -365,6 +377,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 3,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -373,6 +386,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 4,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -381,6 +395,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 5,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -389,6 +404,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 6,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -397,6 +413,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 7,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -405,6 +422,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 8,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -413,6 +431,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 9,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -421,6 +440,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 10,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -429,6 +449,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 1,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -437,6 +458,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 2,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -445,6 +467,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 3,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -453,6 +476,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 4,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -461,6 +485,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 5,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -469,6 +494,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 6,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -477,6 +503,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 7,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -485,6 +512,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 8,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -493,6 +521,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 9,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -501,6 +530,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 10,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -509,6 +539,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 1,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -517,6 +548,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 2,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -525,6 +557,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 3,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -533,6 +566,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 4,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -541,6 +575,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 5,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -549,6 +584,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 6,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -557,6 +593,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 7,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -565,6 +602,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 8,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -573,6 +611,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 9,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -581,6 +620,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 10,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -589,6 +629,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 1,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -597,6 +638,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 2,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -605,6 +647,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 3,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -613,6 +656,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 4,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -621,6 +665,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 5,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -629,6 +674,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 6,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -637,6 +683,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 7,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -645,6 +692,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 8,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -653,6 +701,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 9,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -661,6 +710,7 @@ namespace Tickify.Data.Migrations
                             EventId = 1,
                             Number = 10,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -669,6 +719,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 1,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -677,6 +728,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 2,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -685,6 +737,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 3,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -693,6 +746,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 4,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -701,6 +755,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 5,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -709,6 +764,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 6,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -717,6 +773,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 7,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -725,6 +782,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 8,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -733,6 +791,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 1,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -741,6 +800,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 2,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -749,6 +809,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 3,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -757,6 +818,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 4,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -765,6 +827,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 5,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -773,6 +836,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 6,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -781,6 +845,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 7,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -789,6 +854,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 8,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -797,6 +863,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 1,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -805,6 +872,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 2,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -813,6 +881,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 3,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -821,6 +890,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 4,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -829,6 +899,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 5,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -837,6 +908,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 6,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -845,6 +917,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 7,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -853,6 +926,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 8,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -861,6 +935,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 1,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -869,6 +944,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 2,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -877,6 +953,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 3,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -885,6 +962,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 4,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -893,6 +971,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 5,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -901,6 +980,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 6,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -909,6 +989,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 7,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -917,6 +998,7 @@ namespace Tickify.Data.Migrations
                             EventId = 2,
                             Number = 8,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -925,6 +1007,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 1,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -933,6 +1016,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 2,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -941,6 +1025,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 3,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -949,6 +1034,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 4,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -957,6 +1043,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 5,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -965,6 +1052,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 6,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -973,6 +1061,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 7,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -981,6 +1070,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 8,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -989,6 +1079,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 9,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -997,6 +1088,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 10,
                             Row = 1,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1005,6 +1097,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 1,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1013,6 +1106,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 2,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1021,6 +1115,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 3,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1029,6 +1124,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 4,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1037,6 +1133,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 5,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1045,6 +1142,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 6,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1053,6 +1151,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 7,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1061,6 +1160,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 8,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1069,6 +1169,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 9,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1077,6 +1178,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 10,
                             Row = 2,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1085,6 +1187,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 1,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1093,6 +1196,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 2,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1101,6 +1205,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 3,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1109,6 +1214,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 4,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1117,6 +1223,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 5,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1125,6 +1232,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 6,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1133,6 +1241,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 7,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1141,6 +1250,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 8,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1149,6 +1259,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 9,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1157,6 +1268,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 10,
                             Row = 3,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1165,6 +1277,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 1,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1173,6 +1286,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 2,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1181,6 +1295,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 3,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1189,6 +1304,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 4,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1197,6 +1313,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 5,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1205,6 +1322,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 6,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1213,6 +1331,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 7,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1221,6 +1340,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 8,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1229,6 +1349,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 9,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1237,6 +1358,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 10,
                             Row = 4,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1245,6 +1367,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 1,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1253,6 +1376,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 2,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1261,6 +1385,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 3,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1269,6 +1394,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 4,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1277,6 +1403,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 5,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1285,6 +1412,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 6,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1293,6 +1421,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 7,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1301,6 +1430,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 8,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1309,6 +1439,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 9,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1317,6 +1448,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 10,
                             Row = 5,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1325,6 +1457,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 1,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1333,6 +1466,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 2,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1341,6 +1475,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 3,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1349,6 +1484,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 4,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1357,6 +1493,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 5,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1365,6 +1502,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 6,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1373,6 +1511,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 7,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1381,6 +1520,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 8,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1389,6 +1529,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 9,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         },
                         new
@@ -1397,6 +1538,7 @@ namespace Tickify.Data.Migrations
                             EventId = 3,
                             Number = 10,
                             Row = 6,
+                            RowVersion = 0u,
                             Status = "Available"
                         });
                 });
@@ -1405,32 +1547,32 @@ namespace Tickify.Data.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("integer");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("character varying(20)");
 
                     b.HasKey("Id");
 

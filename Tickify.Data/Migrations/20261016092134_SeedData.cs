@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -203,6 +203,14 @@ namespace Tickify.Data.Migrations
                     { 141, 3, 9, null, 6, "Available" },
                     { 142, 3, 10, null, 6, "Available" }
                 });
+
+            // The seed rows use explicit ids, which does not advance PostgreSQL identity sequences.
+            // Without this, the first real insert would collide with a seeded id.
+            foreach (var table in new[] { "Categories", "Users", "Events", "Seats" })
+            {
+                migrationBuilder.Sql(
+                    $"SELECT setval(pg_get_serial_sequence('\"{table}\"', 'Id'), (SELECT MAX(\"Id\") FROM \"{table}\"));");
+            }
         }
 
         /// <inheritdoc />
