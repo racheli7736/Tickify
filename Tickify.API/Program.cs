@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using Tickify.API.Extensions;
 using Tickify.Data;
@@ -15,12 +16,16 @@ if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default
         "ConnectionStrings:Default is missing. Set it with dotnet user-secrets (see README).");
 
 builder.Services.Configure<JwtSettings>(jwtSection);
-builder.Services.AddJwtAuthentication(jwtSection.Get<JwtSettings>()!);
 
-builder.Services.AddDbContext<AppDbContext>(o =>
-    o.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+builder.Services
+    .AddDatabase(builder.Configuration)
+    .AddApplicationServices()
+    .AddClientCors(builder.Configuration)
+    .AddJwtAuthentication(jwtSection.Get<JwtSettings>()!);
 
-builder.Services.AddControllers();
+// Enums travel as readable strings ("Admin", "Available") instead of numbers.
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -41,6 +46,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseCors(ServiceCollectionExtensions.CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
