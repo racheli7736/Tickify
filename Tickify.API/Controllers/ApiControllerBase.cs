@@ -5,6 +5,7 @@ namespace Tickify.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[ProducesErrorResponseType(typeof(ProblemDetails))] // every 4xx/5xx response documents the same ProblemDetails body
 public abstract class ApiControllerBase : ControllerBase
 {
     /// <summary>200 with the value, or the error mapped to its HTTP status.</summary>

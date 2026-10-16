@@ -3,6 +3,9 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Missing XML comments on non-endpoint members are not worth a warning. -->
+    <NoWarn>$(NoWarn);1591</NoWarn>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>6c5bb15d-fee4-4416-8657-6daea3f7f458</UserSecretsId>
   </PropertyGroup>

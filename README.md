@@ -31,6 +31,9 @@ dotnet user-secrets set "Jwt:Key" "<random string, 64+ characters>" --project Ti
 dotnet run --project Tickify.API
 ```
 
+Swagger UI (Development only): `/swagger`. Log in with `POST /api/auth/login`, press **Authorize** and paste the token
+to call the protected endpoints.
+
 In the Development environment the API applies the migrations and the seed data automatically on startup.
 To apply them manually: `dotnet ef database update -p Tickify.Data -s Tickify.API`.
 
