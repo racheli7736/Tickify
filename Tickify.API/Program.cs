@@ -1,11 +1,17 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using NLog.Web;
 using Tickify.API.Extensions;
 using Tickify.API.Middleware;
 using Tickify.Data;
 using Tickify.Service.Options;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// NLog is the only logging provider; code keeps using ILogger<T>. RemoveLoggerFactoryFilter = false keeps
+// the Logging:LogLevel section of appsettings in charge of the minimum levels.
+builder.Logging.ClearProviders();
+builder.Host.UseNLog(new NLogAspNetCoreOptions { RemoveLoggerFactoryFilter = false });
 
 // Fail fast on missing secrets (they live in User Secrets, never in the repo).
 var jwtSection = builder.Configuration.GetSection(JwtSettings.SectionName);

@@ -38,7 +38,7 @@ public class CorrelationIdMiddleware
             {
                 _logger.LogInformation(
                     "HTTP {Method} {Path} responded {StatusCode} in {ElapsedMs} ms",
-                    context.Request.Method, context.Request.Path, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
+                    context.Request.Method, context.Request.Path.Value, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
             }
         }
     }

@@ -41,6 +41,7 @@ public class OrderService : IOrderService
     public async Task<ServiceResult<OrderResponse>> PurchaseAsync(int userId, CreateOrderRequest request, CancellationToken ct)
     {
         var seatIds = request.SeatIds ?? new List<int>();
+        _logger.LogDebug("Purchase requested by user {UserId} for event {EventId}, seats {SeatIds}", userId, request.EventId, seatIds);
 
         // Rules 1-2: 1..6 seats, no duplicates.
         if (seatIds.Count < 1 || seatIds.Count > MaxSeatsPerOrder)
@@ -141,6 +142,7 @@ public class OrderService : IOrderService
 
     public async Task<ServiceResult> CancelAsync(int userId, int orderId, CancellationToken ct)
     {
+        _logger.LogDebug("Cancel requested by user {UserId} for order {OrderId}", userId, orderId);
         var order = await _orders.GetByIdWithSeatsAsync(orderId, ct);
         if (order is null)
             return ServiceResult.Fail(ErrorType.NotFound, "Order not found.");
