@@ -58,7 +58,7 @@ public class OrderService : IOrderService
         if (ev.StartsAt <= DateTime.UtcNow)
             return Fail(ErrorType.Validation, "Tickets cannot be purchased for an event that has already started.");
 
-        // Tracked on purpose: these rows are modified below, and EF uses their original RowVersion.
+        // Tracked on purpose: these rows are modified below, and EF uses their original RowVersion (xmin).
         var seats = await _seats.GetByIdsForUpdateAsync(ev.Id, seatIds, ct);
 
         // Rule 3: every requested seat exists and belongs to this event.

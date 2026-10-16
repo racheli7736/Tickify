@@ -28,8 +28,9 @@ public class EventRepository : IEventRepository
 
         if (!string.IsNullOrWhiteSpace(query.Search))
         {
-            var search = query.Search.Trim();
-            events = events.Where(e => e.Name.Contains(search));
+            // PostgreSQL LIKE is case-sensitive, so use ILIKE (escaping the wildcard characters).
+            var pattern = "%" + query.Search.Trim().Replace("\\", "\\\\").Replace("%", "\\%").Replace("_", "\\_") + "%";
+            events = events.Where(e => EF.Functions.ILike(e.Name, pattern));
         }
 
         var descending = string.Equals(query.SortDir, "desc", StringComparison.OrdinalIgnoreCase);
