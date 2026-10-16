@@ -34,12 +34,12 @@ public class ExceptionHandlingMiddleware
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
             // The client went away; that is not a server error.
-            _logger.LogDebug("Request {Method} {Path} was cancelled by the client", context.Request.Method, context.Request.Path);
+            _logger.LogDebug("Request {Method} {Path} was cancelled by the client", context.Request.Method, context.Request.Path.Value);
             context.Response.StatusCode = ClientClosedRequest;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path);
+            _logger.LogError(ex, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path.Value);
 
             if (context.Response.HasStarted)
                 throw;

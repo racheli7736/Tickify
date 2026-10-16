@@ -49,6 +49,17 @@ seat, the second `SaveChanges` throws `DbUpdateConcurrencyException` (translated
 - Mapping between entities and DTOs is manual (extension methods in `Tickify.Service/Mapping`); there is no AutoMapper dependency.
 - The seed migration advances the identity sequences after inserting rows with explicit ids.
 
+## Logging
+
+NLog is the only logging provider; the code uses `ILogger<T>`. Every request gets a correlation id
+(`X-Correlation-Id` header, or a new Guid) that is returned in the response, included in every log line and in
+every error body (`correlationId`).
+
+- Console: readable text. Files in `Tickify.API/logs/`: `app.log` (everything) and `errors.log` (errors), one JSON object per line.
+- Files roll every day and at 10 MB into `logs/archive`; archives older than 14 days are deleted. The folder is git-ignored.
+- Levels come from `Logging:LogLevel` in `appsettings`; seat conflicts and failed logins are `Warning`, unhandled exceptions are `Error`.
+- Passwords, tokens, connection strings and e-mail addresses are never logged.
+
 ## Tests
 
 ```powershell

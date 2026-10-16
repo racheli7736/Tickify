@@ -58,8 +58,9 @@ public class AuthService : IAuthService
 
         if (user is null || !_hasher.Verify(request.Password, user.PasswordHash))
         {
-            // Same answer for unknown email and wrong password; never log the password.
-            _logger.LogWarning("Failed login attempt for {Email}", email);
+            // Same answer for unknown email and wrong password. Neither the password nor the email is logged;
+            // the correlation id ties this line to the request log.
+            _logger.LogWarning("Failed login attempt");
             return ServiceResult<AuthResponse>.Fail(ErrorType.Unauthorized, "Invalid email or password.");
         }
 
