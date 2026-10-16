@@ -38,8 +38,7 @@ builder.Services.AddControllers()
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails =
     context => context.ProblemDetails.Extensions["correlationId"] = context.HttpContext.GetCorrelationId());
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerDocs();
 
 var app = builder.Build();
 
@@ -58,7 +57,7 @@ if (app.Environment.IsDevelopment())
     }
 
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(options => options.EnablePersistAuthorization()); // keep the token across page reloads
 }
 
 app.UseHttpsRedirection();
