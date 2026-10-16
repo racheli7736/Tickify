@@ -94,8 +94,10 @@ public class EventService : IEventService
         var ev = request.ToEntity();
         ev.StartsAt = startsAt;
         ev.CreatedAt = DateTime.UtcNow;
+        // Link by id only: the categories came from a no-tracking query, and attaching them via
+        // the navigation would make EF try to insert them again.
         foreach (var category in categories)
-            ev.EventCategories.Add(new EventCategory { Event = ev, CategoryId = category.Id, Category = category });
+            ev.EventCategories.Add(new EventCategory { Event = ev, CategoryId = category.Id });
 
         var seats = new List<Seat>(request.Rows * request.SeatsPerRow);
         for (var row = 1; row <= request.Rows; row++)
@@ -109,11 +111,8 @@ public class EventService : IEventService
 
         _logger.LogInformation("Event {EventId} created with {SeatCount} seats", ev.Id, seats.Count);
 
-        var response = ev.ToDetailsResponse();
-        response.AvailableSeats = seats.Count;
-        response.Rows = request.Rows;
-        response.SeatsPerRow = request.SeatsPerRow;
-        return ServiceResult<EventDetailsResponse>.Success(response);
+        // Read the saved event back (reuses GetByIdAsync) so the response comes from the database.
+        return await GetByIdAsync(ev.Id, ct);
     }
 
     public async Task<ServiceResult> UpdateAsync(int id, UpdateEventRequest request, CancellationToken ct)
