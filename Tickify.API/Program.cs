@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Tickify.API.Extensions;
 using Tickify.Data;
 using Tickify.Service.Options;
 
@@ -14,6 +15,7 @@ if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default
         "ConnectionStrings:Default is missing. Set it with dotnet user-secrets (see README).");
 
 builder.Services.Configure<JwtSettings>(jwtSection);
+builder.Services.AddJwtAuthentication(jwtSection.Get<JwtSettings>()!);
 
 builder.Services.AddDbContext<AppDbContext>(o =>
     o.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
@@ -39,6 +41,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
