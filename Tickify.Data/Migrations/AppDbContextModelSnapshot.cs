@@ -37,9 +37,6 @@ namespace Tickify.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Name")
-                        .IsUnique();
-
                     b.ToTable("Categories");
 
                     b.HasData(
