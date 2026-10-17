@@ -5,6 +5,10 @@ Tickify is an event ticket sales system. Users browse upcoming events, pick spec
 categories and see all orders. The server is an **ASP.NET Core Web API (.NET 8)** with **EF Core + PostgreSQL**,
 JWT authentication and NLog. The React client is a separate repository.
 
+> **Running the automated tests? Read the [Tests](#tests) section first.**
+> There are **116 tests**: 96 need nothing, but **20 need a real PostgreSQL test database**. Without one, `dotnet test` shows
+> **20 failures on purpose** (with setup instructions) - that does not mean the application is broken. Setup takes four commands.
+
 ## The limited resource: the seat
 
 **Resource:** `Seat`. A seat can be sold only once, even when several users try to buy it at the same moment.
@@ -209,46 +213,111 @@ every error body (`correlationId`).
 
 ## Tests
 
-**116 tests**: xUnit + Moq unit tests of the Service layer, architecture guards, and PostgreSQL integration tests.
+### At a glance
 
-**Tests that need external infrastructure: 20 tests need a PostgreSQL database** (they are tagged `Category=PostgreSQL`):
-`ConcurrencyTests` (including the required two-`DbContext` proof), `DuplicateKeyTests` and `ApiTests`. A real PostgreSQL is
-required because the concurrency token is PostgreSQL's `xmin`; an in-memory provider cannot prove it. The other 96 tests need nothing.
+| | Count | Needs PostgreSQL? | What they check |
+|---|---|---|---|
+| Unit, architecture and pipeline tests | **96** | No | Service-layer business rules (Moq), architecture rules, middleware, mapping, JWT |
+| PostgreSQL integration tests | **20** | **Yes - a real test database** | The optimistic-concurrency proof (two `DbContext`s), duplicate races, 401/403 rules, CORS, `Location` headers |
+| **Total** | **116** | | |
 
-**These tests are never skipped.** Without a configured test database they **fail with the setup instructions**, so a green
-`dotnet test` always means the concurrency proof really ran.
+### Why `dotnet test` can show 20 failures (and why that is intentional)
 
-### Run everything (PowerShell)
+If no test database is configured, the 20 PostgreSQL tests **fail on purpose** with a message that explains how to set one up:
+
+```
+Failed!  - Failed: 20, Passed: 96, Skipped: 0, Total: 116
+No test database is configured. The PostgreSQL integration tests need a dedicated test database ...
+```
+
+This **does not necessarily mean there is a bug in the application** - it means the tests that need PostgreSQL could not run yet.
+They are deliberately **never skipped**: a skipped test looks like a pass, and the most important test of this project would silently
+not run. With the test database configured, the result is **116 passed, 0 failed**.
+
+### Why the PostgreSQL tests matter
+
+The assignment's central requirement is the **limited resource**: a seat must never be sold twice, even when two users buy it at the same moment.
+This is solved with **optimistic concurrency** (`Seat.RowVersion`, mapped to PostgreSQL's `xmin` column), and it can only be proven
+against a real PostgreSQL - an in-memory database does not have that column.
+
+The key test is `TwoContexts_UpdateSameSeat_SecondSaveThrowsDbUpdateConcurrencyException` (`Tickify.Tests/Integration/ConcurrencyTests.cs`):
+
+1. Two **separate** `DbContext` instances (like two users) read the **same seat**, while it is still available.
+2. Both mark the seat as sold.
+3. The first `SaveChanges` succeeds.
+4. The second `SaveChanges` **throws `DbUpdateConcurrencyException`** - the database refuses it, because the seat changed in the meantime.
+5. The database contains exactly one sale.
+
+Next to it, `TwoPurchasesSameSeat_OneSucceeds_OtherGetsConflict` repeats this through the real `OrderService` (one success, one **409 Conflict**),
+and the other PostgreSQL tests prove the same for duplicate registrations and categories, and the 401/403 and CORS rules over real HTTP.
+
+### Step by step: set up the test database with Docker and run all 116 tests
+
+You need: the **.NET 8 SDK**, **Docker Desktop (running)**, and a terminal opened in the repository root (the folder with `Tickify.sln`).
+
+**PowerShell (Windows):**
 
 ```powershell
-$env:TICKIFY_DB_PASSWORD = "<choose a password>"   # the same variable that docker-compose.yml uses
-docker compose up -d                               # PostgreSQL on localhost:5433 (skip if it is already running)
+# 1. Choose any password. The same variable is used by docker-compose.yml and by the tests.
+$env:TICKIFY_DB_PASSWORD = "choose-a-password"
+
+# 2. Start PostgreSQL in Docker (port 5433). Wait a few seconds until it is ready.
+docker compose up -d
+
+# 3. Run all the tests (it creates the separate database "tickify_test" by itself and drops it at the end).
 dotnet test
 ```
 
-The tests connect to `localhost:5433` as user `postgres` and use the **separate database `tickify_test`**; `TICKIFY_DB_PORT` changes the port.
-To use another server, set the full connection string instead:
+**bash (Linux / macOS / Git Bash):**
+
+```bash
+export TICKIFY_DB_PASSWORD='choose-a-password'
+docker compose up -d
+dotnet test
+```
+
+**Expected result:** `Passed! - Failed: 0, Passed: 116, Skipped: 0, Total: 116`.
+
+Notes:
+- Run steps 1 and 3 in the **same terminal window** (the variable only exists in the window where you set it).
+- The container keeps the password it was **first created with**. If you already started it earlier with another password, use that password
+  (or, for a throw-away local setup only, `docker compose down -v` deletes the container **and its data** so it can be created again).
+- When you are done: `docker compose down` stops the container.
+- Tests connect to `localhost:5433` as user `postgres`. `TICKIFY_DB_PORT` changes the port.
+
+**Already have your own PostgreSQL?** Skip Docker and give the tests a full connection string to a database whose name ends with `_test`:
 
 ```powershell
 $env:TICKIFY_TEST_CONNECTION = "Host=localhost;Port=5432;Database=tickify_test;Username=postgres;Password=<your password>"
 dotnet test
 ```
 
-(bash: `export TICKIFY_DB_PASSWORD='...'` / `export TICKIFY_TEST_CONNECTION='...'`.)
-
-### Run only the tests that need no database
+### Run only the tests that do not need PostgreSQL
 
 ```powershell
 dotnet test --filter "Category!=PostgreSQL"
 ```
 
-### Safety: the development database is never touched
+Result: **96 tests, all passing**, no database and no Docker required. (To run only the PostgreSQL ones: `dotnet test --filter "Category=PostgreSQL"`.)
 
-- The database name must end with `_test`, otherwise every test refuses to run - a connection string that points at `tickify` is rejected before anything is executed.
-- The tests never read the development connection string or User Secrets. The in-memory API tests run in a `Testing` environment (no User Secrets) with their own settings.
-- The test database is dropped and re-created (migrations + seed data) at the start and dropped at the end.
+### Safety: the tests never touch the development database
 
-### What is covered
+- The tests may only use a database whose **name ends with `_test`** (the default is `tickify_test`). The development database is called `tickify`.
+  If a connection string points at any other name, **every test refuses to run** (`Refusing to run integration tests...`) before anything is executed.
+- The tests **never read the development connection string or User Secrets**. The API tests run in a separate `Testing` environment with their own settings.
+- The test database is **dropped and re-created** (migrations + seed data) when the tests start, and dropped again at the end - so always use a database
+  that exists only for testing. **Never put anything you want to keep in a `*_test` database.**
+
+### If something goes wrong
+
+| Message in the failed tests | Meaning and fix |
+|---|---|
+| `No test database is configured...` | Neither variable is set in this terminal. Set `TICKIFY_DB_PASSWORD` (and run `docker compose up -d`) or `TICKIFY_TEST_CONNECTION`. |
+| `Could not prepare the test database: Failed to connect...` | PostgreSQL is not running or the port differs. Start Docker Desktop, run `docker compose up -d`, wait a few seconds, or check `TICKIFY_DB_PORT`. |
+| `... password authentication failed ...` | The password differs from the one the container was created with (see the notes above). |
+| `Refusing to run integration tests: database '...' does not end with '_test'` | The connection string names a non-test database. Use a database name ending with `_test`. |
+
+### What the tests cover
 
 The seat race (two `DbContext`s, two `OrderService`s), duplicate e-mail / category races (service level and over HTTP), 401 / 403 rules,
 CORS, `Location` headers, the unhandled-exception pipeline (uniform 500 with correlation id), the admin orders data, the Service-layer
