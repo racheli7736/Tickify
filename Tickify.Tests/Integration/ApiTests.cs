@@ -2,45 +2,10 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Nodes;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace Tickify.Tests.Integration;
 
-/// <summary>
-/// Hosts the real API in memory (Testing environment: no user secrets, so the development database
-/// can never be reached) against the isolated "_test" PostgreSQL database.
-/// </summary>
-public sealed class TickifyApiFactory : WebApplicationFactory<Program>
-{
-    public const string ReactOrigin = "http://localhost:5173";
-
-    private readonly string _contentRoot = Path.Combine(Path.GetTempPath(), "tickify-api-tests-" + Guid.NewGuid().ToString("N"));
-
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
-    {
-        var connection = DatabaseFixture.ConnectionString
-            ?? throw new InvalidOperationException($"{DatabaseFixture.EnvVarName} is not set.");
-        DatabaseFixture.EnsureIsTestDatabase(connection);
-
-        Directory.CreateDirectory(_contentRoot);   // keeps the NLog files of the tests out of the project folder
-        builder.UseEnvironment("Testing");
-        builder.UseContentRoot(_contentRoot);
-        builder.UseSetting("ConnectionStrings:Default", connection);
-        builder.UseSetting("Jwt:Key", new string('t', 64));
-        builder.UseSetting("Jwt:Issuer", "Tickify");
-        builder.UseSetting("Jwt:Audience", "Tickify.Client");
-        builder.UseSetting("Jwt:ExpiryMinutes", "60");
-        builder.UseSetting("Cors:AllowedOrigins:0", ReactOrigin);
-    }
-
-    protected override void Dispose(bool disposing)
-    {
-        base.Dispose(disposing);
-        try { Directory.Delete(_contentRoot, recursive: true); } catch (IOException) { /* log files may still be closing */ }
-    }
-}
-
+[Trait("Category", "PostgreSQL")]
 [Collection(IntegrationCollection.Name)]
 public class ApiTests : IClassFixture<TickifyApiFactory>
 {
@@ -68,7 +33,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
 
     // ---------- authentication / authorization ----------
 
-    [PostgresFact]
+    [Fact]
     public async Task Anonymous_ProtectedEndpoint_Returns401WithUniformErrorBody()
     {
         var response = await _factory.CreateClient().GetAsync("/api/events");
@@ -79,7 +44,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
         Assert.False(string.IsNullOrEmpty(body["correlationId"]?.GetValue<string>()));
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task User_CannotUseAdminEndpoints_Returns403()
     {
         var user = await DemoUserAsync();
@@ -88,7 +53,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
         Assert.Equal(HttpStatusCode.Forbidden, (await user.DeleteAsync("/api/events/1")).StatusCode);
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task Admin_CannotBuyTickets_Returns403()
     {
         var admin = await AdminAsync();
@@ -100,7 +65,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
 
     // ---------- duplicate registration / category over real HTTP ----------
 
-    [PostgresFact]
+    [Fact]
     public async Task Register_SameEmailInParallel_NeverReturns500()
     {
         for (var round = 0; round < 5; round++)
@@ -116,7 +81,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
         }
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task CreateCategory_SameNameInParallel_NeverReturns500()
     {
         var admin = await AdminAsync();
@@ -135,26 +100,26 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
 
     // ---------- CORS for the React dev server ----------
 
-    [PostgresFact]
+    [Fact]
     public async Task Cors_PreflightFromTheReactOrigin_IsAllowed()
     {
         var request = new HttpRequestMessage(HttpMethod.Options, "/api/orders");
-        request.Headers.Add("Origin", TickifyApiFactory.ReactOrigin);
+        request.Headers.Add("Origin", TestApiFactory.ReactOrigin);
         request.Headers.Add("Access-Control-Request-Method", "DELETE");
         request.Headers.Add("Access-Control-Request-Headers", "authorization,content-type");
 
         var response = await _factory.CreateClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        Assert.Equal(TickifyApiFactory.ReactOrigin, response.Headers.GetValues("Access-Control-Allow-Origin").Single());
+        Assert.Equal(TestApiFactory.ReactOrigin, response.Headers.GetValues("Access-Control-Allow-Origin").Single());
         Assert.Contains("DELETE", response.Headers.GetValues("Access-Control-Allow-Methods").Single());
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task Cors_ResponsesExposeTheCorrelationIdHeaderToTheBrowser()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/events");
-        request.Headers.Add("Origin", TickifyApiFactory.ReactOrigin);
+        request.Headers.Add("Origin", TestApiFactory.ReactOrigin);
 
         var response = await _factory.CreateClient().SendAsync(request);   // 401, but CORS headers still apply
 
@@ -162,7 +127,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
         Assert.True(response.Headers.Contains("X-Correlation-Id"));
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task Cors_OtherOrigins_AreNotAllowed()
     {
         var request = new HttpRequestMessage(HttpMethod.Get, "/api/events");
@@ -175,7 +140,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
 
     // ---------- admin orders screen ----------
 
-    [PostgresFact]
+    [Fact]
     public async Task AdminOrders_ShowWhoBought_WithoutExposingTheEmail()
     {
         await _database.ResetAsync();
@@ -198,7 +163,7 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
         Assert.DoesNotContain("user@tickets.local", single);
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task AnotherUser_CannotReadSomeoneElsesOrder_Returns403()
     {
         await _database.ResetAsync();
@@ -213,5 +178,64 @@ public class ApiTests : IClassFixture<TickifyApiFactory>
         other.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         Assert.Equal(HttpStatusCode.Forbidden, (await other.GetAsync($"/api/orders/{orderId}")).StatusCode);
+    }
+
+    // ---------- HTTP 201 must carry a Location header ----------
+
+    [Fact]
+    public async Task Register_Returns201WithALocationThatTheNewUserCanOpen_WithoutEmail()
+    {
+        var client = _factory.CreateClient();
+        var email = $"location-{Guid.NewGuid():N}@example.com";
+
+        var register = await client.PostAsJsonAsync("/api/auth/register", new { fullName = "Location Test", email, password = "secret12" });
+
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+        var body = (await register.Content.ReadFromJsonAsync<JsonNode>())!;
+        var userId = body["userId"]!.GetValue<int>();
+        Assert.EndsWith($"/api/Users/{userId}", register.Headers.Location!.AbsolutePath, StringComparison.OrdinalIgnoreCase);
+
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", body["token"]!.GetValue<string>());
+        var profile = await client.GetAsync(register.Headers.Location);
+        var json = await profile.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, profile.StatusCode);
+        Assert.Contains("Location Test", json);
+        Assert.DoesNotContain(email, json);                                    // no e-mail
+        Assert.DoesNotContain("password", json, StringComparison.OrdinalIgnoreCase);   // nothing credential-related
+    }
+
+    [Fact]
+    public async Task UserProfile_IsPrivate_OwnerAndAdminOnly()
+    {
+        var admin = await AdminAsync();
+        var demo = await DemoUserAsync();
+        var other = _factory.CreateClient();
+        var register = await other.PostAsJsonAsync("/api/auth/register",
+            new { fullName = "Other Person", email = $"other-{Guid.NewGuid():N}@example.com", password = "secret12" });
+        var registered = (await register.Content.ReadFromJsonAsync<JsonNode>())!;
+        other.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", registered["token"]!.GetValue<string>());
+        var otherId = registered["userId"]!.GetValue<int>();
+
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync($"/api/users/{otherId}")).StatusCode);     // an admin may read any
+        Assert.Equal(HttpStatusCode.Forbidden, (await demo.GetAsync($"/api/users/{otherId}")).StatusCode);   // another user may not
+        Assert.Equal(HttpStatusCode.Unauthorized, (await _factory.CreateClient().GetAsync($"/api/users/{otherId}")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await admin.GetAsync("/api/users/999999")).StatusCode);
+    }
+
+    [Fact]
+    public async Task CreateCategory_Returns201WithALocationThatPointsToIt()
+    {
+        var admin = await AdminAsync();
+        var name = $"Location-{Guid.NewGuid():N}";
+
+        var create = await admin.PostAsJsonAsync("/api/categories", new { name });
+
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var id = (await create.Content.ReadFromJsonAsync<JsonNode>())!["id"]!.GetValue<int>();
+        Assert.EndsWith($"/api/Categories/{id}", create.Headers.Location!.AbsolutePath, StringComparison.OrdinalIgnoreCase);
+
+        var read = await (await DemoUserAsync()).GetFromJsonAsync<JsonNode>(create.Headers.Location);
+        Assert.Equal(name, read!["name"]!.GetValue<string>());
     }
 }

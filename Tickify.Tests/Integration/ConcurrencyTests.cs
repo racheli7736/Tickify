@@ -12,6 +12,7 @@ using Tickify.Tests.Helpers;
 
 namespace Tickify.Tests.Integration;
 
+[Trait("Category", "PostgreSQL")]
 [Collection(IntegrationCollection.Name)]
 public class ConcurrencyTests
 {
@@ -22,7 +23,7 @@ public class ConcurrencyTests
 
     public ConcurrencyTests(DatabaseFixture fixture) => _fixture = fixture;
 
-    [PostgresFact]
+    [Fact]
     public async Task TwoContexts_UpdateSameSeat_SecondSaveThrowsDbUpdateConcurrencyException()
     {
         await _fixture.ResetAsync();
@@ -46,7 +47,7 @@ public class ConcurrencyTests
         Assert.Equal(SeatStatus.Sold, stored.Status);
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task TwoPurchasesSameSeat_OneSucceeds_OtherGetsConflict()
     {
         await _fixture.ResetAsync();
@@ -77,7 +78,7 @@ public class ConcurrencyTests
         Assert.NotNull(seat.OrderId);
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task CategoryNames_AreUniqueIgnoringCase()
     {
         using var db = _fixture.CreateContext();

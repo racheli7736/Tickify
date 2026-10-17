@@ -32,6 +32,7 @@ public class JwtTokenServiceTests
     {
         var response = new JwtTokenService(Options.Create(Settings())).CreateToken(Admin());
 
+        Assert.Equal(42, response.UserId);
         Assert.Equal("Admin", response.FullName);
         Assert.Equal(UserRole.Admin, response.Role);
         Assert.InRange(response.ExpiresAt, DateTime.UtcNow.AddMinutes(29), DateTime.UtcNow.AddMinutes(31));

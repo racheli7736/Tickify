@@ -19,7 +19,7 @@ public class AuthController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<AuthResponse>> Register([FromBody] RegisterRequest request, CancellationToken ct) =>
         ToActionResult(await _auth.RegisterAsync(request, ct),
-            value => StatusCode(StatusCodes.Status201Created, value));
+            value => CreatedAtAction(nameof(UsersController.GetById), "Users", new { id = value.UserId }, value));
 
     /// <summary>Logs in and returns a JWT.</summary>
     [HttpPost("login")]

@@ -1,5 +1,4 @@
 using System.Text.Json.Serialization;
-using Microsoft.EntityFrameworkCore;
 using NLog.Web;
 using Tickify.API.Extensions;
 using Tickify.API.Middleware;
@@ -42,19 +41,15 @@ builder.Services.AddSwaggerDocs();
 
 var app = builder.Build();
 
-// Outermost, so every log line of a request (including the Error from the exception middleware) carries the id.
-app.UseMiddleware<CorrelationIdMiddleware>();
+// Pipeline order: errors first (so nothing below can leak an unhandled exception), then the correlation id.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
     // Create / update the database (and seed data) automatically on startup.
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        await db.Database.MigrateAsync();
-    }
+    await app.Services.MigrateDatabaseAsync();
 
     app.UseSwagger();
     app.UseSwaggerUI(options => options.EnablePersistAuthorization()); // keep the token across page reloads

@@ -17,6 +17,9 @@ public class CategoryRepository : ICategoryRepository
     public Task<Category?> GetByIdAsync(int id, CancellationToken ct) =>
         _db.Categories.FirstOrDefaultAsync(c => c.Id == id, ct);
 
+    public Task<Category?> GetByIdReadOnlyAsync(int id, CancellationToken ct) =>
+        _db.Categories.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
+
     public Task<List<Category>> GetByIdsAsync(IEnumerable<int> ids, CancellationToken ct)
     {
         var idList = ids.Distinct().ToList();

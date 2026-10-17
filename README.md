@@ -49,6 +49,30 @@ Tickify.API  ----->  Tickify.Service  ----->  Tickify.Core   <-----  Tickify.Dat
 Services return `ServiceResult` (`Validation / NotFound / Conflict / Forbidden / Unauthorized`); `ApiControllerBase` maps
 them to 400 / 404 / 409 / 403 / 401. Everything is async with `CancellationToken`. Entities never leave the API - only DTOs.
 
+### Request pipeline (the order matters)
+
+`ExceptionHandlingMiddleware` (first: any unhandled exception becomes the uniform 500 JSON and an `Error` log line) ->
+`CorrelationIdMiddleware` (id from `X-Correlation-Id` or a new Guid, put in the log scope, one log line per request) ->
+status pages -> Swagger (Development) -> HTTPS redirection -> CORS -> **Authentication** -> **Authorization** -> controllers.
+
+### Dependency injection and lifetimes
+
+Every dependency is injected through the constructor; the interfaces live in `Core`, the implementations in `Data`/`Service`,
+and everything is registered in `Tickify.API/Extensions/ServiceCollectionExtensions.cs` (called from `Program.cs`).
+
+| Lifetime | One instance per... | Used here for |
+|---|---|---|
+| **Scoped** | HTTP request | `AppDbContext`, all repositories, `IUnitOfWork`, all services - they work on the request's `DbContext` |
+| **Singleton** | application | `IPasswordHasher`, `ITokenService` - stateless, no scoped dependency |
+| **Transient** | each injection | not needed |
+
+**Why a singleton must not hold a scoped service (the "captive dependency" bug):** a singleton lives as long as the application, so
+whatever it receives in its constructor lives that long too. A singleton that took the scoped `DbContext` would keep the *first*
+request's `DbContext` forever: it is not thread-safe (concurrent requests would corrupt its state), its change tracker would keep growing
+and serve stale data, and it would be used after its request ended (and may already be disposed). That is why the services that use
+the `DbContext` are scoped, and only the stateless hasher and token service are singletons. In Development, ASP.NET Core validates this
+on startup (`ValidateScopes`) and fails fast if a singleton captures a scoped service.
+
 ## Getting started
 
 Requirements: **.NET 8 SDK**, **PostgreSQL 14+** (Docker is the easiest), Git.
@@ -109,7 +133,7 @@ All endpoints except register/login require `Authorization: Bearer <token>`.
 
 | Method and path | Who | Success | Other statuses |
 |---|---|---|---|
-| `POST /api/auth/register` | anyone | 201 | 400, 409 (e-mail taken) |
+| `POST /api/auth/register` | anyone | 201 + `Location: /api/users/{id}` (and a JWT) | 400, 409 (e-mail taken) |
 | `POST /api/auth/login` | anyone | 200 | 400, 401 |
 | `GET /api/events?categoryId&search&sortBy=date\|price\|name&sortDir=asc\|desc&page&pageSize(1-50)` | User (upcoming only), Admin (all) | 200 paged | 400, 401 |
 | `GET /api/events/{id}` | any logged-in | 200 (incl. rows, seats per row, available seats) | 404 |
@@ -117,8 +141,10 @@ All endpoints except register/login require `Authorization: Bearer <token>`.
 | `POST /api/events` | Admin | 201 + `Location` (creates all seats) | 400, 403 |
 | `PUT /api/events/{id}` | Admin | 204 (details + categories, not the seat structure) | 400, 403, 404 |
 | `DELETE /api/events/{id}` | Admin | 204 | 403, 404, 409 (has sold tickets / orders) |
+| `GET /api/users/{id}` | the user themself, or Admin | 200 (`id`, `fullName`, `role`, `createdAt` - no e-mail) | 403, 404 |
 | `GET /api/categories` | any logged-in | 200 | 401 |
-| `POST /api/categories` | Admin | 201 | 400, 403, 409 (name taken, ignoring case) |
+| `GET /api/categories/{id}` | any logged-in | 200 | 404 |
+| `POST /api/categories` | Admin | 201 + `Location` | 400, 403, 409 (name taken, ignoring case) |
 | `PUT /api/categories/{id}` | Admin | 204 | 400, 403, 404, 409 |
 | `DELETE /api/categories/{id}` | Admin | 204 | 403, 404, 409 (assigned to events) |
 | `POST /api/orders` | User | 201 + `Location` (1-6 seats, all or nothing) | 400, 403, 404, **409 (seat taken)** |
@@ -126,7 +152,7 @@ All endpoints except register/login require `Authorization: Bearer <token>`.
 | `GET /api/orders/{id}` | owner or Admin | 200 | 403, 404 |
 | `DELETE /api/orders/{id}` | owner (User) | 204 (seats become available again) | 400, 403, 404, 409 |
 
-Order responses contain the purchaser's `userId` and `userFullName` (so an admin can tell orders apart) but never an e-mail address.
+Every `201 Created` carries a `Location` header that points to the created resource. Order responses contain the purchaser's `userId` and `userFullName` (so an admin can tell orders apart) but never an e-mail address.
 
 **Error format:** every error (validation, business, 401/403/404, 500) is the same JSON -
 `{ "status", "title", "detail", "correlationId" }` (RFC 7807 problem details; validation errors add `errors`).
@@ -183,22 +209,51 @@ every error body (`correlationId`).
 
 ## Tests
 
+**116 tests**: xUnit + Moq unit tests of the Service layer, architecture guards, and PostgreSQL integration tests.
+
+**Tests that need external infrastructure: 20 tests need a PostgreSQL database** (they are tagged `Category=PostgreSQL`):
+`ConcurrencyTests` (including the required two-`DbContext` proof), `DuplicateKeyTests` and `ApiTests`. A real PostgreSQL is
+required because the concurrency token is PostgreSQL's `xmin`; an in-memory provider cannot prove it. The other 96 tests need nothing.
+
+**These tests are never skipped.** Without a configured test database they **fail with the setup instructions**, so a green
+`dotnet test` always means the concurrency proof really ran.
+
+### Run everything (PowerShell)
+
 ```powershell
+$env:TICKIFY_DB_PASSWORD = "<choose a password>"   # the same variable that docker-compose.yml uses
+docker compose up -d                               # PostgreSQL on localhost:5433 (skip if it is already running)
 dotnet test
 ```
 
-Unit tests (Moq) always run. The PostgreSQL integration tests are **skipped** unless you provide the connection string of a dedicated
-test database:
+The tests connect to `localhost:5433` as user `postgres` and use the **separate database `tickify_test`**; `TICKIFY_DB_PORT` changes the port.
+To use another server, set the full connection string instead:
 
 ```powershell
-$env:TICKIFY_TEST_CONNECTION = "Host=localhost;Port=5433;Database=tickify_test;Username=postgres;Password=<your password>"
+$env:TICKIFY_TEST_CONNECTION = "Host=localhost;Port=5432;Database=tickify_test;Username=postgres;Password=<your password>"
 dotnet test
 ```
 
-They cover: the seat race (two `DbContext`s, two `OrderService`s), duplicate e-mail / category races (service level and over HTTP),
-401 / 403 rules, CORS, and the admin orders screen data. Safety: the database name must end with `_test`, otherwise the tests refuse
-to run, and the API tests run in a `Testing` environment (no User Secrets), so the development database cannot be touched. The test
-database is dropped and re-created (migrations + seed) at the start and dropped at the end.
+(bash: `export TICKIFY_DB_PASSWORD='...'` / `export TICKIFY_TEST_CONNECTION='...'`.)
+
+### Run only the tests that need no database
+
+```powershell
+dotnet test --filter "Category!=PostgreSQL"
+```
+
+### Safety: the development database is never touched
+
+- The database name must end with `_test`, otherwise every test refuses to run - a connection string that points at `tickify` is rejected before anything is executed.
+- The tests never read the development connection string or User Secrets. The in-memory API tests run in a `Testing` environment (no User Secrets) with their own settings.
+- The test database is dropped and re-created (migrations + seed data) at the start and dropped at the end.
+
+### What is covered
+
+The seat race (two `DbContext`s, two `OrderService`s), duplicate e-mail / category races (service level and over HTTP), 401 / 403 rules,
+CORS, `Location` headers, the unhandled-exception pipeline (uniform 500 with correlation id), the admin orders data, the Service-layer
+business rules with mocks, and architecture guards (Core has no packages, controllers only use service interfaces, exception handling is
+the first middleware, every async interface method takes a `CancellationToken`).
 
 ## AutoMapper license
 
