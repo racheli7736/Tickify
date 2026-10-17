@@ -55,7 +55,7 @@ public class DatabaseFixture : IAsyncLifetime
             "UPDATE \"Seats\" SET \"Status\" = 'Available', \"OrderId\" = NULL; DELETE FROM \"Orders\";");
     }
 
-    private static void EnsureIsTestDatabase(string connectionString)
+    public static void EnsureIsTestDatabase(string connectionString)
     {
         var database = new NpgsqlConnectionStringBuilder(connectionString).Database;
         if (string.IsNullOrWhiteSpace(database) || !database.EndsWith("_test", StringComparison.OrdinalIgnoreCase))

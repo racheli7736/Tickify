@@ -10,9 +10,8 @@ public class UserRepository : IUserRepository
 
     public UserRepository(AppDbContext db) => _db = db;
 
-    // Tracked: the caller may need to update the user.
     public Task<User?> GetByEmailAsync(string email, CancellationToken ct) =>
-        _db.Users.FirstOrDefaultAsync(u => u.Email == email, ct);
+        _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email, ct);
 
     public Task<bool> EmailExistsAsync(string email, CancellationToken ct) =>
         _db.Users.AsNoTracking().AnyAsync(u => u.Email == email, ct);

@@ -3,6 +3,7 @@ using Moq;
 using Tickify.Core.Common;
 using Tickify.Core.DTOs.Categories;
 using Tickify.Core.Entities;
+using Tickify.Core.Exceptions;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Service.Services;
 using Tickify.Tests.Helpers;
@@ -129,5 +130,28 @@ public class CategoryServiceTests
         var result = await Sut().DeleteAsync(9, CancellationToken.None);
 
         Assert.Equal(ErrorType.NotFound, result.ErrorType);
+    }
+
+    [Fact]
+    public async Task CreateAsync_NameTakenBetweenCheckAndSave_ReturnsConflictInsteadOfFailing()
+    {
+        _categories.Setup(c => c.NameExistsAsync(It.IsAny<string>(), null, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DuplicateKeyException("duplicate"));
+
+        var result = await Sut().CreateAsync(new CategoryRequest { Name = "Dance" }, CancellationToken.None);
+
+        Assert.Equal(ErrorType.Conflict, result.ErrorType);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NameTakenBetweenCheckAndSave_ReturnsConflictInsteadOfFailing()
+    {
+        _categories.Setup(c => c.GetByIdAsync(4, It.IsAny<CancellationToken>())).ReturnsAsync(new Category { Id = 4, Name = "Old" });
+        _categories.Setup(c => c.NameExistsAsync("New", 4, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DuplicateKeyException("duplicate"));
+
+        var result = await Sut().UpdateAsync(4, new CategoryRequest { Name = "New" }, CancellationToken.None);
+
+        Assert.Equal(ErrorType.Conflict, result.ErrorType);
     }
 }

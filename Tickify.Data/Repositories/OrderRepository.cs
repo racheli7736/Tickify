@@ -23,6 +23,7 @@ public class OrderRepository : IOrderRepository
 
         var items = await orders
             .Include(o => o.Event)
+            .Include(o => o.User)
             .OrderByDescending(o => o.CreatedAt).ThenByDescending(o => o.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
@@ -36,6 +37,12 @@ public class OrderRepository : IOrderRepository
             TotalCount = totalCount
         };
     }
+
+    public Task<Order?> GetByIdWithDetailsAsync(int id, CancellationToken ct) =>
+        _db.Orders.AsNoTracking()
+            .Include(o => o.Event)
+            .Include(o => o.User)
+            .FirstOrDefaultAsync(o => o.Id == id, ct);
 
     // Tracked: CancelAsync modifies the order and releases its seats.
     public Task<Order?> GetByIdWithSeatsAsync(int id, CancellationToken ct) =>

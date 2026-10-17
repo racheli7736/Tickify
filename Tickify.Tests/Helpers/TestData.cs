@@ -41,6 +41,7 @@ public static class TestData
             UserId = userId,
             EventId = ev.Id,
             Event = ev,
+            User = new User { Id = userId, FullName = $"Buyer {userId}", Email = $"buyer{userId}@example.com" },
             Status = OrderStatus.Active,
             TotalPrice = ev.TicketPrice * seats.Length,
             SeatsSummary = "summary",

@@ -124,9 +124,10 @@ public class EventService : IEventService
         if (ev is null)
             return ServiceResult.Fail(ErrorType.NotFound, "Event not found.");
 
+        // Only a *new* date has to be in the future; details of an event that already happened stay editable.
         var startsAt = AsUtc(request.StartsAt);
-        if (startsAt <= DateTime.UtcNow)
-            return ServiceResult.Fail(ErrorType.Validation, "The event date must be in the future.");
+        if (startsAt != ev.StartsAt && startsAt <= DateTime.UtcNow)
+            return ServiceResult.Fail(ErrorType.Validation, "The new event date must be in the future.");
 
         var categoryIds = request.CategoryIds.Distinct().ToList();
         var categories = await _categories.GetByIdsAsync(categoryIds, ct);

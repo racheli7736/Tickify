@@ -1,6 +1,12 @@
-@Tickify.API_HostAddress = http://localhost:5111
+@Tickify.API_HostAddress = https://localhost:7003
 
-GET {{Tickify.API_HostAddress}}/weatherforecast/
+### Log in as the demo user and copy the token from the response
+POST {{Tickify.API_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "user@tickets.local", "password": "User123!" }
+
+### List upcoming events (paste the token after "Bearer ")
+GET {{Tickify.API_HostAddress}}/api/events?page=1&pageSize=10&sortBy=date
+Authorization: Bearer <token>
 Accept: application/json
-
-###

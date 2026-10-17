@@ -9,6 +9,7 @@ public class OrderProfile : Profile
     public OrderProfile()
     {
         CreateMap<Order, OrderResponse>()
+            .ForMember(d => d.UserFullName, o => o.MapFrom(s => s.User.FullName))
             .ForMember(d => d.EventName, o => o.MapFrom(s => s.Event.Name))
             .ForMember(d => d.EventStartsAt, o => o.MapFrom(s => s.Event.StartsAt));
     }
