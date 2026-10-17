@@ -206,7 +206,7 @@ public class OrderServiceTests
     public async Task GetByIdAsync_EnforcesOwnership(int callerId, bool isAdmin, ErrorType expected)
     {
         var order = TestData.ActiveOrder(5, UserId, TestData.Event(), TestData.Seat(1));
-        _orders.Setup(o => o.GetByIdWithSeatsAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+        _orders.Setup(o => o.GetByIdWithDetailsAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(order);
 
         var result = await Sut().GetByIdAsync(callerId, isAdmin, 5, CancellationToken.None);
 
@@ -216,7 +216,7 @@ public class OrderServiceTests
     [Fact]
     public async Task GetByIdAsync_UnknownOrder_ReturnsNotFound()
     {
-        _orders.Setup(o => o.GetByIdWithSeatsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync((Order?)null);
+        _orders.Setup(o => o.GetByIdWithDetailsAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync((Order?)null);
 
         var result = await Sut().GetByIdAsync(UserId, false, 5, CancellationToken.None);
 
@@ -303,5 +303,16 @@ public class OrderServiceTests
 
         Assert.Equal(ErrorType.Conflict, result.ErrorType);
         Assert.Single(_logger.Messages(LogLevel.Warning));
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_ReturnsThePurchaserIdAndName()
+    {
+        var order = TestData.ActiveOrder(5, UserId, TestData.Event(), TestData.Seat(1));
+        _orders.Setup(o => o.GetByIdWithDetailsAsync(5, It.IsAny<CancellationToken>())).ReturnsAsync(order);
+
+        var result = await Sut().GetByIdAsync(99, isAdmin: true, 5, CancellationToken.None);
+
+        Assert.Equal((UserId, $"Buyer {UserId}"), (result.Value!.UserId, result.Value.UserFullName));
     }
 }

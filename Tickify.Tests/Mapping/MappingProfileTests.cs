@@ -76,4 +76,15 @@ public class MappingProfileTests
         Assert.Equal(string.Empty, user.PasswordHash);   // set by AuthService after hashing
         Assert.DoesNotContain("plain-secret", user.PasswordHash);
     }
+
+    [Fact]
+    public void OrderResponse_ExposesThePurchaserNameButNoEmail()
+    {
+        var order = new Order { Id = 1, UserId = 9, User = new User { Id = 9, FullName = "Dana Cohen", Email = "dana@example.com" }, Event = new Event() };
+
+        var response = _mapper.Map<Core.DTOs.Orders.OrderResponse>(order);
+
+        Assert.Equal((9, "Dana Cohen"), (response.UserId, response.UserFullName));
+        Assert.DoesNotContain(typeof(Core.DTOs.Orders.OrderResponse).GetProperties(), p => p.Name.Contains("Email", StringComparison.OrdinalIgnoreCase));
+    }
 }

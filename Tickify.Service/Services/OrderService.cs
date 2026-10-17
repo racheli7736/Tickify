@@ -133,7 +133,7 @@ public class OrderService : IOrderService
 
     public async Task<ServiceResult<OrderResponse>> GetByIdAsync(int userId, bool isAdmin, int orderId, CancellationToken ct)
     {
-        var order = await _orders.GetByIdWithSeatsAsync(orderId, ct);
+        var order = await _orders.GetByIdWithDetailsAsync(orderId, ct);
         if (order is null)
             return Fail(ErrorType.NotFound, "Order not found.");
 

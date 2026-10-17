@@ -4,6 +4,7 @@ using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
 using Tickify.Data;
 using Tickify.Data.Repositories;
+using Tickify.API.Middleware;
 using Tickify.Service.Mapping;
 using Tickify.Service.Options;
 using Tickify.Service.Security;
@@ -49,7 +50,11 @@ public static class ServiceCollectionExtensions
         var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 
         return services.AddCors(options => options.AddPolicy(CorsPolicyName, policy =>
-            policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
+            policy.WithOrigins(origins)
+                .AllowAnyHeader()
+                .AllowAnyMethod()
+                // Lets the browser (React) read the correlation id of a response.
+                .WithExposedHeaders(CorrelationIdMiddleware.HeaderName)));
     }
 
     public static IServiceCollection AddJwtAuthentication(this IServiceCollection services, JwtSettings settings)

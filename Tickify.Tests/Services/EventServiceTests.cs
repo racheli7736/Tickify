@@ -296,4 +296,30 @@ public class EventServiceTests
 
         Assert.Equal(ErrorType.NotFound, result.ErrorType);
     }
+
+    [Fact]
+    public async Task UpdateAsync_EventThatAlreadyHappened_CanStillEditDetailsWhenTheDateIsUnchanged()
+    {
+        var happened = TestData.Past;
+        var ev = TestData.Event(1, startsAt: happened);
+        _events.Setup(e => e.GetByIdForUpdateAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(ev);
+        GivenCategoriesExist();
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(1);
+
+        var result = await Sut().UpdateAsync(1, UpdateRequest(startsAt: happened), CancellationToken.None);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Renamed", ev.Name);
+    }
+
+    [Fact]
+    public async Task UpdateAsync_MovingAPastEventToAnotherPastDate_ReturnsValidationError()
+    {
+        var ev = TestData.Event(1, startsAt: TestData.Past);
+        _events.Setup(e => e.GetByIdForUpdateAsync(1, It.IsAny<CancellationToken>())).ReturnsAsync(ev);
+
+        var result = await Sut().UpdateAsync(1, UpdateRequest(startsAt: TestData.Past.AddDays(-5)), CancellationToken.None);
+
+        Assert.Equal(ErrorType.Validation, result.ErrorType);
+    }
 }

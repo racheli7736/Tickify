@@ -94,24 +94,6 @@ public class ConcurrencyTests
         TestMapper.Create(),
         NullLogger<OrderService>.Instance);
 
-    /// <summary>Lets both callers reach the same point before either continues.</summary>
-    private sealed class Rendezvous
-    {
-        private readonly int _parties;
-        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private int _arrived;
-
-        public Rendezvous(int parties) => _parties = parties;
-
-        public async Task ArriveAsync()
-        {
-            if (Interlocked.Increment(ref _arrived) == _parties)
-                _released.TrySetResult();
-
-            await _released.Task.WaitAsync(TimeSpan.FromSeconds(15));
-        }
-    }
-
     /// <summary>Real repository, but waits after loading the seats so both reads happen before any save.</summary>
     private sealed class RendezvousSeatRepository : ISeatRepository
     {

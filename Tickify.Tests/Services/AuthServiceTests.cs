@@ -4,6 +4,7 @@ using Tickify.Core.Common;
 using Tickify.Core.DTOs.Auth;
 using Tickify.Core.Entities;
 using Tickify.Core.Enums;
+using Tickify.Core.Exceptions;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
 using Tickify.Service.Services;
@@ -128,5 +129,22 @@ public class AuthServiceTests
         Assert.Equal(ErrorType.Unauthorized, result.ErrorType);
         Assert.Equal("Invalid email or password.", result.Error);   // no hint whether the email exists
         _hasher.Verify(h => h.Verify(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task RegisterAsync_EmailTakenBetweenCheckAndSave_ReturnsConflictInsteadOfFailing()
+    {
+        // Two requests passed the "e-mail is free" check; the unique index rejected the second save.
+        _users.Setup(u => u.EmailExistsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _hasher.Setup(h => h.Hash(Password)).Returns("HASHED");
+        _unitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>())).ThrowsAsync(new DuplicateKeyException("duplicate"));
+
+        var result = await Sut().RegisterAsync(Register(), CancellationToken.None);
+
+        Assert.Equal(ErrorType.Conflict, result.ErrorType);
+        Assert.Equal("A user with this email already exists.", result.Error);
+        _tokens.Verify(t => t.CreateToken(It.IsAny<User>()), Times.Never);
+        var warning = Assert.Single(_logger.Messages(LogLevel.Warning));
+        Assert.DoesNotContain("example.com", warning, StringComparison.OrdinalIgnoreCase);
     }
 }

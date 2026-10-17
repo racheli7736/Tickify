@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Tickify.Core.Common;
 using Tickify.Core.DTOs.Categories;
 using Tickify.Core.Entities;
+using Tickify.Core.Exceptions;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
 
@@ -10,6 +11,8 @@ namespace Tickify.Service.Services;
 
 public class CategoryService : ICategoryService
 {
+    private const string NameTakenMessage = "A category with this name already exists.";
+
     private readonly ICategoryRepository _categories;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
@@ -37,12 +40,13 @@ public class CategoryService : ICategoryService
     {
         var name = request.Name.Trim();
         if (await _categories.NameExistsAsync(name, null, ct))
-            return ServiceResult<CategoryResponse>.Fail(ErrorType.Conflict, "A category with this name already exists.");
+            return ServiceResult<CategoryResponse>.Fail(ErrorType.Conflict, NameTakenMessage);
 
         var category = _mapper.Map<Category>(request);
         category.Name = name;
         await _categories.AddAsync(category, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
+        if (!await TrySaveAsync(ct))
+            return ServiceResult<CategoryResponse>.Fail(ErrorType.Conflict, NameTakenMessage);
 
         _logger.LogInformation("Category {CategoryId} created", category.Id);
         return ServiceResult<CategoryResponse>.Success(_mapper.Map<CategoryResponse>(category));
@@ -56,10 +60,11 @@ public class CategoryService : ICategoryService
 
         var name = request.Name.Trim();
         if (await _categories.NameExistsAsync(name, id, ct))
-            return ServiceResult.Fail(ErrorType.Conflict, "A category with this name already exists.");
+            return ServiceResult.Fail(ErrorType.Conflict, NameTakenMessage);
 
         category.Name = name;
-        await _unitOfWork.SaveChangesAsync(ct);
+        if (!await TrySaveAsync(ct))
+            return ServiceResult.Fail(ErrorType.Conflict, NameTakenMessage);
 
         _logger.LogInformation("Category {CategoryId} updated", id);
         return ServiceResult.Success();
@@ -79,5 +84,20 @@ public class CategoryService : ICategoryService
 
         _logger.LogInformation("Category {CategoryId} deleted", id);
         return ServiceResult.Success();
+    }
+
+    // False when another request took the same name between our check and our save (unique index on lower(Name)).
+    private async Task<bool> TrySaveAsync(CancellationToken ct)
+    {
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(ct);
+            return true;
+        }
+        catch (DuplicateKeyException)
+        {
+            _logger.LogWarning("Category save lost a race for a name that was just taken");
+            return false;
+        }
     }
 }

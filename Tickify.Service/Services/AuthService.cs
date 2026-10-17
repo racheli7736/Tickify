@@ -4,6 +4,7 @@ using Tickify.Core.Common;
 using Tickify.Core.DTOs.Auth;
 using Tickify.Core.Entities;
 using Tickify.Core.Enums;
+using Tickify.Core.Exceptions;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
 
@@ -11,6 +12,8 @@ namespace Tickify.Service.Services;
 
 public class AuthService : IAuthService
 {
+    private const string EmailTakenMessage = "A user with this email already exists.";
+
     private readonly IUserRepository _users;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _hasher;
@@ -39,7 +42,7 @@ public class AuthService : IAuthService
         var email = request.Email.Trim().ToLowerInvariant();
 
         if (await _users.EmailExistsAsync(email, ct))
-            return ServiceResult<AuthResponse>.Fail(ErrorType.Conflict, "A user with this email already exists.");
+            return ServiceResult<AuthResponse>.Fail(ErrorType.Conflict, EmailTakenMessage);
 
         var user = _mapper.Map<User>(request);
         user.Email = email;
@@ -48,7 +51,16 @@ public class AuthService : IAuthService
         user.CreatedAt = DateTime.UtcNow;
 
         await _users.AddAsync(user, ct);
-        await _unitOfWork.SaveChangesAsync(ct);
+        try
+        {
+            await _unitOfWork.SaveChangesAsync(ct);
+        }
+        catch (DuplicateKeyException)
+        {
+            // Another request registered the same e-mail between our check and our save.
+            _logger.LogWarning("Registration lost a race for an e-mail that was just taken");
+            return ServiceResult<AuthResponse>.Fail(ErrorType.Conflict, EmailTakenMessage);
+        }
 
         _logger.LogInformation("User {UserId} registered", user.Id);
         return ServiceResult<AuthResponse>.Success(_tokens.CreateToken(user));
