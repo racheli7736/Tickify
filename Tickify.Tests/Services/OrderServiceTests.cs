@@ -22,7 +22,7 @@ public class OrderServiceTests
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
     private readonly ListLogger<OrderService> _logger = new();
 
-    private OrderService Sut() => new(_orders.Object, _events.Object, _seats.Object, _unitOfWork.Object, _logger);
+    private OrderService Sut() => new(_orders.Object, _events.Object, _seats.Object, _unitOfWork.Object, TestMapper.Create(), _logger);
 
     private static CreateOrderRequest Request(int eventId, params int[] seatIds) =>
         new() { EventId = eventId, SeatIds = seatIds.ToList() };

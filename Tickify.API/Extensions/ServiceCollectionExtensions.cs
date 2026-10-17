@@ -4,6 +4,7 @@ using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
 using Tickify.Data;
 using Tickify.Data.Repositories;
+using Tickify.Service.Mapping;
 using Tickify.Service.Options;
 using Tickify.Service.Security;
 using Tickify.Service.Services;
@@ -32,6 +33,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEventService, EventService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ICategoryService, CategoryService>();
+
+        // Maps entities to DTOs; the profiles live in the Service assembly.
+        services.AddAutoMapper(cfg => { }, typeof(EventProfile).Assembly);
 
         // Singleton is safe here: they are stateless and do not depend on any scoped service.
         services.AddSingleton<IPasswordHasher, BCryptPasswordHasher>();

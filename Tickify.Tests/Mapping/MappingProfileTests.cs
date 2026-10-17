@@ -1,14 +1,21 @@
+using Tickify.Core.DTOs.Auth;
 using Tickify.Core.DTOs.Events;
 using Tickify.Core.Entities;
 using Tickify.Core.Enums;
-using Tickify.Service.Mapping;
+using Tickify.Tests.Helpers;
 
 namespace Tickify.Tests.Mapping;
 
-public class ManualMappingTests
+public class MappingProfileTests
 {
+    private readonly AutoMapper.IMapper _mapper = TestMapper.Create();
+
     [Fact]
-    public void Event_ToResponse_MapsFieldsAndCategoryNames()
+    public void AutoMapperConfiguration_IsValid() =>
+        TestMapper.Configuration().AssertConfigurationIsValid();
+
+    [Fact]
+    public void Event_MapsToResponse_WithCategoryNames()
     {
         var ev = new Event
         {
@@ -17,7 +24,7 @@ public class ManualMappingTests
             EventCategories = { new EventCategory { Category = new Category { Name = "Music" } } }
         };
 
-        var response = ev.ToResponse();
+        var response = _mapper.Map<EventResponse>(ev);
 
         Assert.Equal(7, response.Id);
         Assert.Equal("Show", response.Name);
@@ -26,7 +33,7 @@ public class ManualMappingTests
     }
 
     [Fact]
-    public void UpdateEventRequest_ApplyTo_ChangesDetailsOnly()
+    public void UpdateEventRequest_ChangesDetailsOnly()
     {
         var created = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var ev = new Event { Id = 3, Name = "Old", CreatedAt = created };
@@ -35,7 +42,7 @@ public class ManualMappingTests
             Name = "New", Venue = "V", Description = "D", TicketPrice = 10m, StartsAt = DateTime.UtcNow
         };
 
-        request.ApplyTo(ev);
+        _mapper.Map(request, ev);
 
         Assert.Equal("New", ev.Name);
         Assert.Equal(3, ev.Id);
@@ -43,7 +50,7 @@ public class ManualMappingTests
     }
 
     [Fact]
-    public void Order_ToResponse_WorksWithAndWithoutLoadedEvent()
+    public void Order_MapsToResponse_WithAndWithoutLoadedEvent()
     {
         var order = new Order
         {
@@ -51,12 +58,22 @@ public class ManualMappingTests
             Event = null!
         };
 
-        Assert.Equal(string.Empty, order.ToResponse().EventName);
+        Assert.Equal(string.Empty, _mapper.Map<Core.DTOs.Orders.OrderResponse>(order).EventName ?? string.Empty);
 
         order.Event = new Event { Name = "Show", StartsAt = new DateTime(2030, 1, 1, 0, 0, 0, DateTimeKind.Utc) };
-        var response = order.ToResponse();
+        var response = _mapper.Map<Core.DTOs.Orders.OrderResponse>(order);
 
         Assert.Equal("Show", response.EventName);
         Assert.Equal(order.Event.StartsAt, response.EventStartsAt);
+    }
+
+    [Fact]
+    public void RegisterRequest_MapsToUser_WithoutPasswordHashOrRole()
+    {
+        var user = _mapper.Map<User>(new RegisterRequest { FullName = "A B", Email = "a@b.com", Password = "plain-secret" });
+
+        Assert.Equal("A B", user.FullName);
+        Assert.Equal(string.Empty, user.PasswordHash);   // set by AuthService after hashing
+        Assert.DoesNotContain("plain-secret", user.PasswordHash);
     }
 }

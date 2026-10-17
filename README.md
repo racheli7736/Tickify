@@ -49,7 +49,8 @@ seat, the second `SaveChanges` throws `DbUpdateConcurrencyException` (translated
 
 - Timestamps are `timestamptz`; the API only writes UTC values.
 - Event search uses `ILIKE` (case-insensitive). Category names are unique ignoring case, enforced by a unique index on `lower("Name")`; the migration refuses to run (without touching any data) if such duplicates already exist.
-- Mapping between entities and DTOs is manual (extension methods in `Tickify.Service/Mapping`); there is no AutoMapper dependency.
+- Mapping between entities and DTOs uses AutoMapper 15.1.3 profiles (`Tickify.Service/Mapping`). Versions below 15.1.1 are affected by
+  GHSA-rvv3-g6hj-g44x (DoS), so 15.1.1 or later is required. See [AutoMapper license](#automapper-license).
 - The seed migration advances the identity sequences after inserting rows with explicit ids.
 
 ## Logging
@@ -62,6 +63,28 @@ every error body (`correlationId`).
 - Files roll every day and at 10 MB into `logs/archive`; archives older than 14 days are deleted. The folder is git-ignored.
 - Levels come from `Logging:LogLevel` in `appsettings`; seat conflicts and failed logins are `Warning`, unhandled exceptions are `Error`.
 - Passwords, tokens, connection strings and e-mail addresses are never logged.
+
+## AutoMapper license
+
+AutoMapper 15+ (Lucky Penny Software) is no longer MIT-licensed. Current terms (checked on 2026-10-17; they may change):
+
+- **Free for this project.** The *Community License* is free and self-service. Individuals can use it, and the EULA explicitly lets
+  "individual students ... use the Licensed Product under the Community License for genuine educational purposes - including ...
+  coursework" (EULA section 4.2.g.3.3). Tickify is a non-commercial educational project, which fits this license.
+  The source is also public under the Reciprocal Public License 1.5, a free alternative that requires sharing the source of software
+  you distribute or deploy that uses it; this repository is public on GitHub.
+- **Exception to check:** a student is not eligible if a contract with their university gives the university ownership of the work
+  (EULA section 4.2.g.7).
+- **License key:** only needed for production deployments. Development, testing and CI need no key. Without a key AutoMapper writes a
+  `WARN` line at startup (about the Lucky Penny license); it is only a log message and nothing is limited. If the API is ever deployed
+  for real users, register a free Community key and set it with `cfg.LicenseKey` in `AddAutoMapper`.
+
+Official sources: [Pricing and Community License](https://automapper.io/#pricing) |
+[Licensing FAQ](https://luckypennysoftware.com/faq) | [License agreement (PDF)](https://luckypennysoftware.com/license) |
+[Setting the key](https://docs.automapper.io/en/stable/Getting-started.html) |
+[RPL-1.5](https://opensource.org/license/rpl-1-5/)
+
+This section is a summary, not legal advice.
 
 ## Tests
 

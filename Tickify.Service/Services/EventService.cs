@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Tickify.Core.Common;
 using Tickify.Core.DTOs.Common;
@@ -7,7 +8,6 @@ using Tickify.Core.Entities;
 using Tickify.Core.Enums;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
-using Tickify.Service.Mapping;
 
 namespace Tickify.Service.Services;
 
@@ -17,6 +17,7 @@ public class EventService : IEventService
     private readonly ISeatRepository _seats;
     private readonly ICategoryRepository _categories;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
     private readonly ILogger<EventService> _logger;
 
     public EventService(
@@ -24,12 +25,14 @@ public class EventService : IEventService
         ISeatRepository seats,
         ICategoryRepository categories,
         IUnitOfWork unitOfWork,
+        IMapper mapper,
         ILogger<EventService> logger)
     {
         _events = events;
         _seats = seats;
         _categories = categories;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -42,7 +45,7 @@ public class EventService : IEventService
         // One grouped query for the whole page (no N+1).
         var available = await _seats.GetAvailableCountsAsync(page.Items.Select(e => e.Id), ct);
 
-        var items = page.Items.Select(e => e.ToResponse()).ToList();
+        var items = _mapper.Map<List<EventResponse>>(page.Items);
         foreach (var item in items)
             item.AvailableSeats = available.GetValueOrDefault(item.Id);
 
@@ -61,7 +64,7 @@ public class EventService : IEventService
         if (ev is null)
             return ServiceResult<EventDetailsResponse>.Fail(ErrorType.NotFound, "Event not found.");
 
-        var response = ev.ToDetailsResponse();
+        var response = _mapper.Map<EventDetailsResponse>(ev);
         var available = await _seats.GetAvailableCountsAsync(new[] { id }, ct);
         var (rows, perRow) = await _seats.GetLayoutAsync(id, ct);
         response.AvailableSeats = available.GetValueOrDefault(id);
@@ -77,7 +80,7 @@ public class EventService : IEventService
             return ServiceResult<List<SeatResponse>>.Fail(ErrorType.NotFound, "Event not found.");
 
         var seats = await _seats.GetByEventAsync(eventId, ct);
-        return ServiceResult<List<SeatResponse>>.Success(seats.Select(s => s.ToResponse()).ToList());
+        return ServiceResult<List<SeatResponse>>.Success(_mapper.Map<List<SeatResponse>>(seats));
     }
 
     public async Task<ServiceResult<EventDetailsResponse>> CreateAsync(CreateEventRequest request, CancellationToken ct)
@@ -91,7 +94,7 @@ public class EventService : IEventService
         if (categories.Count != categoryIds.Count)
             return ServiceResult<EventDetailsResponse>.Fail(ErrorType.Validation, "One or more categories do not exist.");
 
-        var ev = request.ToEntity();
+        var ev = _mapper.Map<Event>(request);
         ev.StartsAt = startsAt;
         ev.CreatedAt = DateTime.UtcNow;
         // Link by id only: the categories came from a no-tracking query, and attaching them via
@@ -131,7 +134,7 @@ public class EventService : IEventService
             return ServiceResult.Fail(ErrorType.Validation, "One or more categories do not exist.");
 
         // Only details and categories are editable; the seat structure is fixed at creation.
-        request.ApplyTo(ev);
+        _mapper.Map(request, ev);
         ev.StartsAt = startsAt;
 
         foreach (var stale in ev.EventCategories.Where(ec => !categoryIds.Contains(ec.CategoryId)).ToList())
