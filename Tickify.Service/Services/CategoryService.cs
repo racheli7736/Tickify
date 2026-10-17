@@ -1,10 +1,10 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Tickify.Core.Common;
 using Tickify.Core.DTOs.Categories;
 using Tickify.Core.Entities;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
-using Tickify.Service.Mapping;
 
 namespace Tickify.Service.Services;
 
@@ -12,22 +12,25 @@ public class CategoryService : ICategoryService
 {
     private readonly ICategoryRepository _categories;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IMapper _mapper;
     private readonly ILogger<CategoryService> _logger;
 
     public CategoryService(
         ICategoryRepository categories,
         IUnitOfWork unitOfWork,
+        IMapper mapper,
         ILogger<CategoryService> logger)
     {
         _categories = categories;
         _unitOfWork = unitOfWork;
+        _mapper = mapper;
         _logger = logger;
     }
 
     public async Task<ServiceResult<List<CategoryResponse>>> GetAllAsync(CancellationToken ct)
     {
         var categories = await _categories.GetAllAsync(ct);
-        return ServiceResult<List<CategoryResponse>>.Success(categories.Select(c => c.ToResponse()).ToList());
+        return ServiceResult<List<CategoryResponse>>.Success(_mapper.Map<List<CategoryResponse>>(categories));
     }
 
     public async Task<ServiceResult<CategoryResponse>> CreateAsync(CategoryRequest request, CancellationToken ct)
@@ -36,13 +39,13 @@ public class CategoryService : ICategoryService
         if (await _categories.NameExistsAsync(name, null, ct))
             return ServiceResult<CategoryResponse>.Fail(ErrorType.Conflict, "A category with this name already exists.");
 
-        var category = request.ToEntity();
+        var category = _mapper.Map<Category>(request);
         category.Name = name;
         await _categories.AddAsync(category, ct);
         await _unitOfWork.SaveChangesAsync(ct);
 
         _logger.LogInformation("Category {CategoryId} created", category.Id);
-        return ServiceResult<CategoryResponse>.Success(category.ToResponse());
+        return ServiceResult<CategoryResponse>.Success(_mapper.Map<CategoryResponse>(category));
     }
 
     public async Task<ServiceResult> UpdateAsync(int id, CategoryRequest request, CancellationToken ct)

@@ -5,6 +5,7 @@ using Tickify.Core.DTOs.Categories;
 using Tickify.Core.Entities;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Service.Services;
+using Tickify.Tests.Helpers;
 
 namespace Tickify.Tests.Services;
 
@@ -13,7 +14,7 @@ public class CategoryServiceTests
     private readonly Mock<ICategoryRepository> _categories = new();
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
-    private CategoryService Sut() => new(_categories.Object, _unitOfWork.Object, NullLogger<CategoryService>.Instance);
+    private CategoryService Sut() => new(_categories.Object, _unitOfWork.Object, TestMapper.Create(), NullLogger<CategoryService>.Instance);
 
     private void VerifyNothingSaved() =>
         _unitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);

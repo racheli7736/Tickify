@@ -28,7 +28,7 @@ public class AuthServiceTests
             .Returns((User u) => new AuthResponse { Token = "jwt", FullName = u.FullName, Role = u.Role });
     }
 
-    private AuthService Sut() => new(_users.Object, _unitOfWork.Object, _hasher.Object, _tokens.Object, _logger);
+    private AuthService Sut() => new(_users.Object, _unitOfWork.Object, _hasher.Object, _tokens.Object, TestMapper.Create(), _logger);
 
     private static RegisterRequest Register() => new() { FullName = "Some One", Email = $"  {Email}  ", Password = Password };
 

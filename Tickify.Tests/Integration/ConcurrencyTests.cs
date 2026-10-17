@@ -8,6 +8,7 @@ using Tickify.Core.Interfaces.Repositories;
 using Tickify.Data;
 using Tickify.Data.Repositories;
 using Tickify.Service.Services;
+using Tickify.Tests.Helpers;
 
 namespace Tickify.Tests.Integration;
 
@@ -90,6 +91,7 @@ public class ConcurrencyTests
         new EventRepository(ctx),
         new RendezvousSeatRepository(new SeatRepository(ctx), rendezvous),
         new UnitOfWork(ctx),
+        TestMapper.Create(),
         NullLogger<OrderService>.Instance);
 
     /// <summary>Lets both callers reach the same point before either continues.</summary>

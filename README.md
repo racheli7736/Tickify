@@ -49,7 +49,9 @@ seat, the second `SaveChanges` throws `DbUpdateConcurrencyException` (translated
 
 - Timestamps are `timestamptz`; the API only writes UTC values.
 - Event search uses `ILIKE` (case-insensitive). Category names are unique ignoring case, enforced by a unique index on `lower("Name")`; the migration refuses to run (without touching any data) if such duplicates already exist.
-- Mapping between entities and DTOs is manual (extension methods in `Tickify.Service/Mapping`); there is no AutoMapper dependency.
+- Mapping between entities and DTOs uses AutoMapper 15.1.3 profiles (`Tickify.Service/Mapping`). Versions below 15.1.1 are affected by
+  GHSA-rvv3-g6hj-g44x (DoS), so 15.1.1 or later is required. AutoMapper 15+ is licensed under RPL 1.5 or the Lucky Penny commercial
+  license; without a license key it logs a warning at startup, which is allowed for development and testing.
 - The seed migration advances the identity sequences after inserting rows with explicit ids.
 
 ## Logging

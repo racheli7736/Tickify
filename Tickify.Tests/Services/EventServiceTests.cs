@@ -19,7 +19,7 @@ public class EventServiceTests
     private readonly Mock<IUnitOfWork> _unitOfWork = new();
 
     private EventService Sut() =>
-        new(_events.Object, _seats.Object, _categories.Object, _unitOfWork.Object, NullLogger<EventService>.Instance);
+        new(_events.Object, _seats.Object, _categories.Object, _unitOfWork.Object, TestMapper.Create(), NullLogger<EventService>.Instance);
 
     private static CreateEventRequest CreateRequest(DateTime? startsAt = null, int rows = 3, int perRow = 4, params int[] categoryIds) => new()
     {

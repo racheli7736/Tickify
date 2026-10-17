@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.Extensions.Logging;
 using Tickify.Core.Common;
 using Tickify.Core.DTOs.Auth;
@@ -5,7 +6,6 @@ using Tickify.Core.Entities;
 using Tickify.Core.Enums;
 using Tickify.Core.Interfaces.Repositories;
 using Tickify.Core.Interfaces.Services;
-using Tickify.Service.Mapping;
 
 namespace Tickify.Service.Services;
 
@@ -15,6 +15,7 @@ public class AuthService : IAuthService
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _hasher;
     private readonly ITokenService _tokens;
+    private readonly IMapper _mapper;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -22,12 +23,14 @@ public class AuthService : IAuthService
         IUnitOfWork unitOfWork,
         IPasswordHasher hasher,
         ITokenService tokens,
+        IMapper mapper,
         ILogger<AuthService> logger)
     {
         _users = users;
         _unitOfWork = unitOfWork;
         _hasher = hasher;
         _tokens = tokens;
+        _mapper = mapper;
         _logger = logger;
     }
 
@@ -38,7 +41,7 @@ public class AuthService : IAuthService
         if (await _users.EmailExistsAsync(email, ct))
             return ServiceResult<AuthResponse>.Fail(ErrorType.Conflict, "A user with this email already exists.");
 
-        var user = request.ToEntity();
+        var user = _mapper.Map<User>(request);
         user.Email = email;
         user.PasswordHash = _hasher.Hash(request.Password);
         user.Role = UserRole.User;
