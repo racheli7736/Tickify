@@ -20,6 +20,13 @@ public class CategoriesController : ApiControllerBase
     public async Task<ActionResult<List<CategoryResponse>>> GetAll(CancellationToken ct) =>
         ToActionResult(await _categories.GetAllAsync(ct));
 
+    /// <summary>Gets one category.</summary>
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(CategoryResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<CategoryResponse>> GetById([FromRoute] int id, CancellationToken ct) =>
+        ToActionResult(await _categories.GetByIdAsync(id, ct));
+
     /// <summary>Creates a category (Admin).</summary>
     [HttpPost]
     [Authorize(Roles = nameof(UserRole.Admin))]
@@ -29,7 +36,7 @@ public class CategoriesController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status409Conflict)]
     public async Task<ActionResult<CategoryResponse>> Create([FromBody] CategoryRequest request, CancellationToken ct) =>
         ToActionResult(await _categories.CreateAsync(request, ct),
-            value => StatusCode(StatusCodes.Status201Created, value));
+            value => CreatedAtAction(nameof(GetById), new { id = value.Id }, value));
 
     /// <summary>Renames a category (Admin).</summary>
     [HttpPut("{id:int}")]

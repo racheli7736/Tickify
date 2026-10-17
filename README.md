@@ -5,6 +5,10 @@ Tickify is an event ticket sales system. Users browse upcoming events, pick spec
 categories and see all orders. The server is an **ASP.NET Core Web API (.NET 8)** with **EF Core + PostgreSQL**,
 JWT authentication and NLog. The React client is a separate repository.
 
+> **Running the automated tests? Read the [Tests](#tests) section first.**
+> There are **116 tests**: 96 need nothing, but **20 need a real PostgreSQL test database**. Without one, `dotnet test` shows
+> **20 failures on purpose** (with setup instructions) - that does not mean the application is broken. Setup takes four commands.
+
 ## The limited resource: the seat
 
 **Resource:** `Seat`. A seat can be sold only once, even when several users try to buy it at the same moment.
@@ -48,6 +52,30 @@ Tickify.API  ----->  Tickify.Service  ----->  Tickify.Core   <-----  Tickify.Dat
 
 Services return `ServiceResult` (`Validation / NotFound / Conflict / Forbidden / Unauthorized`); `ApiControllerBase` maps
 them to 400 / 404 / 409 / 403 / 401. Everything is async with `CancellationToken`. Entities never leave the API - only DTOs.
+
+### Request pipeline (the order matters)
+
+`ExceptionHandlingMiddleware` (first: any unhandled exception becomes the uniform 500 JSON and an `Error` log line) ->
+`CorrelationIdMiddleware` (id from `X-Correlation-Id` or a new Guid, put in the log scope, one log line per request) ->
+status pages -> Swagger (Development) -> HTTPS redirection -> CORS -> **Authentication** -> **Authorization** -> controllers.
+
+### Dependency injection and lifetimes
+
+Every dependency is injected through the constructor; the interfaces live in `Core`, the implementations in `Data`/`Service`,
+and everything is registered in `Tickify.API/Extensions/ServiceCollectionExtensions.cs` (called from `Program.cs`).
+
+| Lifetime | One instance per... | Used here for |
+|---|---|---|
+| **Scoped** | HTTP request | `AppDbContext`, all repositories, `IUnitOfWork`, all services - they work on the request's `DbContext` |
+| **Singleton** | application | `IPasswordHasher`, `ITokenService` - stateless, no scoped dependency |
+| **Transient** | each injection | not needed |
+
+**Why a singleton must not hold a scoped service (the "captive dependency" bug):** a singleton lives as long as the application, so
+whatever it receives in its constructor lives that long too. A singleton that took the scoped `DbContext` would keep the *first*
+request's `DbContext` forever: it is not thread-safe (concurrent requests would corrupt its state), its change tracker would keep growing
+and serve stale data, and it would be used after its request ended (and may already be disposed). That is why the services that use
+the `DbContext` are scoped, and only the stateless hasher and token service are singletons. In Development, ASP.NET Core validates this
+on startup (`ValidateScopes`) and fails fast if a singleton captures a scoped service.
 
 ## Getting started
 
@@ -109,7 +137,7 @@ All endpoints except register/login require `Authorization: Bearer <token>`.
 
 | Method and path | Who | Success | Other statuses |
 |---|---|---|---|
-| `POST /api/auth/register` | anyone | 201 | 400, 409 (e-mail taken) |
+| `POST /api/auth/register` | anyone | 201 + `Location: /api/users/{id}` (and a JWT) | 400, 409 (e-mail taken) |
 | `POST /api/auth/login` | anyone | 200 | 400, 401 |
 | `GET /api/events?categoryId&search&sortBy=date\|price\|name&sortDir=asc\|desc&page&pageSize(1-50)` | User (upcoming only), Admin (all) | 200 paged | 400, 401 |
 | `GET /api/events/{id}` | any logged-in | 200 (incl. rows, seats per row, available seats) | 404 |
@@ -117,8 +145,10 @@ All endpoints except register/login require `Authorization: Bearer <token>`.
 | `POST /api/events` | Admin | 201 + `Location` (creates all seats) | 400, 403 |
 | `PUT /api/events/{id}` | Admin | 204 (details + categories, not the seat structure) | 400, 403, 404 |
 | `DELETE /api/events/{id}` | Admin | 204 | 403, 404, 409 (has sold tickets / orders) |
+| `GET /api/users/{id}` | the user themself, or Admin | 200 (`id`, `fullName`, `role`, `createdAt` - no e-mail) | 403, 404 |
 | `GET /api/categories` | any logged-in | 200 | 401 |
-| `POST /api/categories` | Admin | 201 | 400, 403, 409 (name taken, ignoring case) |
+| `GET /api/categories/{id}` | any logged-in | 200 | 404 |
+| `POST /api/categories` | Admin | 201 + `Location` | 400, 403, 409 (name taken, ignoring case) |
 | `PUT /api/categories/{id}` | Admin | 204 | 400, 403, 404, 409 |
 | `DELETE /api/categories/{id}` | Admin | 204 | 403, 404, 409 (assigned to events) |
 | `POST /api/orders` | User | 201 + `Location` (1-6 seats, all or nothing) | 400, 403, 404, **409 (seat taken)** |
@@ -126,7 +156,7 @@ All endpoints except register/login require `Authorization: Bearer <token>`.
 | `GET /api/orders/{id}` | owner or Admin | 200 | 403, 404 |
 | `DELETE /api/orders/{id}` | owner (User) | 204 (seats become available again) | 400, 403, 404, 409 |
 
-Order responses contain the purchaser's `userId` and `userFullName` (so an admin can tell orders apart) but never an e-mail address.
+Every `201 Created` carries a `Location` header that points to the created resource. Order responses contain the purchaser's `userId` and `userFullName` (so an admin can tell orders apart) but never an e-mail address.
 
 **Error format:** every error (validation, business, 401/403/404, 500) is the same JSON -
 `{ "status", "title", "detail", "correlationId" }` (RFC 7807 problem details; validation errors add `errors`).
@@ -183,22 +213,116 @@ every error body (`correlationId`).
 
 ## Tests
 
+### At a glance
+
+| | Count | Needs PostgreSQL? | What they check |
+|---|---|---|---|
+| Unit, architecture and pipeline tests | **96** | No | Service-layer business rules (Moq), architecture rules, middleware, mapping, JWT |
+| PostgreSQL integration tests | **20** | **Yes - a real test database** | The optimistic-concurrency proof (two `DbContext`s), duplicate races, 401/403 rules, CORS, `Location` headers |
+| **Total** | **116** | | |
+
+### Why `dotnet test` can show 20 failures (and why that is intentional)
+
+If no test database is configured, the 20 PostgreSQL tests **fail on purpose** with a message that explains how to set one up:
+
+```
+Failed!  - Failed: 20, Passed: 96, Skipped: 0, Total: 116
+No test database is configured. The PostgreSQL integration tests need a dedicated test database ...
+```
+
+This **does not necessarily mean there is a bug in the application** - it means the tests that need PostgreSQL could not run yet.
+They are deliberately **never skipped**: a skipped test looks like a pass, and the most important test of this project would silently
+not run. With the test database configured, the result is **116 passed, 0 failed**.
+
+### Why the PostgreSQL tests matter
+
+The assignment's central requirement is the **limited resource**: a seat must never be sold twice, even when two users buy it at the same moment.
+This is solved with **optimistic concurrency** (`Seat.RowVersion`, mapped to PostgreSQL's `xmin` column), and it can only be proven
+against a real PostgreSQL - an in-memory database does not have that column.
+
+The key test is `TwoContexts_UpdateSameSeat_SecondSaveThrowsDbUpdateConcurrencyException` (`Tickify.Tests/Integration/ConcurrencyTests.cs`):
+
+1. Two **separate** `DbContext` instances (like two users) read the **same seat**, while it is still available.
+2. Both mark the seat as sold.
+3. The first `SaveChanges` succeeds.
+4. The second `SaveChanges` **throws `DbUpdateConcurrencyException`** - the database refuses it, because the seat changed in the meantime.
+5. The database contains exactly one sale.
+
+Next to it, `TwoPurchasesSameSeat_OneSucceeds_OtherGetsConflict` repeats this through the real `OrderService` (one success, one **409 Conflict**),
+and the other PostgreSQL tests prove the same for duplicate registrations and categories, and the 401/403 and CORS rules over real HTTP.
+
+### Step by step: set up the test database with Docker and run all 116 tests
+
+You need: the **.NET 8 SDK**, **Docker Desktop (running)**, and a terminal opened in the repository root (the folder with `Tickify.sln`).
+
+**PowerShell (Windows):**
+
 ```powershell
+# 1. Choose any password. The same variable is used by docker-compose.yml and by the tests.
+$env:TICKIFY_DB_PASSWORD = "choose-a-password"
+
+# 2. Start PostgreSQL in Docker (port 5433). Wait a few seconds until it is ready.
+docker compose up -d
+
+# 3. Run all the tests (it creates the separate database "tickify_test" by itself and drops it at the end).
 dotnet test
 ```
 
-Unit tests (Moq) always run. The PostgreSQL integration tests are **skipped** unless you provide the connection string of a dedicated
-test database:
+**bash (Linux / macOS / Git Bash):**
 
-```powershell
-$env:TICKIFY_TEST_CONNECTION = "Host=localhost;Port=5433;Database=tickify_test;Username=postgres;Password=<your password>"
+```bash
+export TICKIFY_DB_PASSWORD='choose-a-password'
+docker compose up -d
 dotnet test
 ```
 
-They cover: the seat race (two `DbContext`s, two `OrderService`s), duplicate e-mail / category races (service level and over HTTP),
-401 / 403 rules, CORS, and the admin orders screen data. Safety: the database name must end with `_test`, otherwise the tests refuse
-to run, and the API tests run in a `Testing` environment (no User Secrets), so the development database cannot be touched. The test
-database is dropped and re-created (migrations + seed) at the start and dropped at the end.
+**Expected result:** `Passed! - Failed: 0, Passed: 116, Skipped: 0, Total: 116`.
+
+Notes:
+- Run steps 1 and 3 in the **same terminal window** (the variable only exists in the window where you set it).
+- The container keeps the password it was **first created with**. If you already started it earlier with another password, use that password
+  (or, for a throw-away local setup only, `docker compose down -v` deletes the container **and its data** so it can be created again).
+- When you are done: `docker compose down` stops the container.
+- Tests connect to `localhost:5433` as user `postgres`. `TICKIFY_DB_PORT` changes the port.
+
+**Already have your own PostgreSQL?** Skip Docker and give the tests a full connection string to a database whose name ends with `_test`:
+
+```powershell
+$env:TICKIFY_TEST_CONNECTION = "Host=localhost;Port=5432;Database=tickify_test;Username=postgres;Password=<your password>"
+dotnet test
+```
+
+### Run only the tests that do not need PostgreSQL
+
+```powershell
+dotnet test --filter "Category!=PostgreSQL"
+```
+
+Result: **96 tests, all passing**, no database and no Docker required. (To run only the PostgreSQL ones: `dotnet test --filter "Category=PostgreSQL"`.)
+
+### Safety: the tests never touch the development database
+
+- The tests may only use a database whose **name ends with `_test`** (the default is `tickify_test`). The development database is called `tickify`.
+  If a connection string points at any other name, **every test refuses to run** (`Refusing to run integration tests...`) before anything is executed.
+- The tests **never read the development connection string or User Secrets**. The API tests run in a separate `Testing` environment with their own settings.
+- The test database is **dropped and re-created** (migrations + seed data) when the tests start, and dropped again at the end - so always use a database
+  that exists only for testing. **Never put anything you want to keep in a `*_test` database.**
+
+### If something goes wrong
+
+| Message in the failed tests | Meaning and fix |
+|---|---|
+| `No test database is configured...` | Neither variable is set in this terminal. Set `TICKIFY_DB_PASSWORD` (and run `docker compose up -d`) or `TICKIFY_TEST_CONNECTION`. |
+| `Could not prepare the test database: Failed to connect...` | PostgreSQL is not running or the port differs. Start Docker Desktop, run `docker compose up -d`, wait a few seconds, or check `TICKIFY_DB_PORT`. |
+| `... password authentication failed ...` | The password differs from the one the container was created with (see the notes above). |
+| `Refusing to run integration tests: database '...' does not end with '_test'` | The connection string names a non-test database. Use a database name ending with `_test`. |
+
+### What the tests cover
+
+The seat race (two `DbContext`s, two `OrderService`s), duplicate e-mail / category races (service level and over HTTP), 401 / 403 rules,
+CORS, `Location` headers, the unhandled-exception pipeline (uniform 500 with correlation id), the admin orders data, the Service-layer
+business rules with mocks, and architecture guards (Core has no packages, controllers only use service interfaces, exception handling is
+the first middleware, every async interface method takes a `CancellationToken`).
 
 ## AutoMapper license
 

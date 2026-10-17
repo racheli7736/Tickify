@@ -41,6 +41,7 @@ public class JwtTokenService : ITokenService
 
         return new AuthResponse
         {
+            UserId = user.Id,
             Token = new JwtSecurityTokenHandler().WriteToken(token),
             ExpiresAt = expiresAt,
             FullName = user.FullName,

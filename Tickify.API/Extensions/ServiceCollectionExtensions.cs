@@ -34,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEventService, EventService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<ICategoryService, CategoryService>();
+        services.AddScoped<IUserService, UserService>();
 
         // Maps entities to DTOs; the profiles live in the Service assembly.
         services.AddAutoMapper(cfg => { }, typeof(EventProfile).Assembly);

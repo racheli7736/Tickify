@@ -20,6 +20,7 @@ namespace Tickify.Tests.Integration;
 /// Regression tests for the "two simultaneous requests create the same e-mail / category name" bug.
 /// Before the fix the loser of the race surfaced as HTTP 500; it must be a 409 (Conflict).
 /// </summary>
+[Trait("Category", "PostgreSQL")]
 [Collection(IntegrationCollection.Name)]
 public class DuplicateKeyTests
 {
@@ -36,7 +37,7 @@ public class DuplicateKeyTests
 
     // ---------- the data layer translates the PostgreSQL error ----------
 
-    [PostgresFact]
+    [Fact]
     public async Task UnitOfWork_DuplicateEmail_ThrowsDuplicateKeyException()
     {
         var email = UniqueEmail();
@@ -50,7 +51,7 @@ public class DuplicateKeyTests
         await Assert.ThrowsAsync<DuplicateKeyException>(() => new UnitOfWork(second).SaveChangesAsync(CancellationToken.None));
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task UnitOfWork_CategoryNameDiffersOnlyByCase_ThrowsDuplicateKeyException()
     {
         var name = $"Cat-{Guid.NewGuid():N}";
@@ -66,7 +67,7 @@ public class DuplicateKeyTests
 
     // ---------- the services turn it into a Conflict (race forced deterministically) ----------
 
-    [PostgresFact]
+    [Fact]
     public async Task Register_SameEmailAtTheSameTime_OneSucceedsAndTheOtherGetsConflict()
     {
         var email = UniqueEmail();
@@ -89,7 +90,7 @@ public class DuplicateKeyTests
         Assert.Equal(1, await verify.Users.CountAsync(u => u.Email == email));
     }
 
-    [PostgresFact]
+    [Fact]
     public async Task CreateCategory_SameNameAtTheSameTime_OneSucceedsAndTheOtherGetsConflict()
     {
         var name = $"Race-{Guid.NewGuid():N}";
@@ -141,6 +142,7 @@ public class DuplicateKeyTests
             return exists;
         }
 
+        public Task<User?> GetByIdAsync(int id, CancellationToken ct) => _inner.GetByIdAsync(id, ct);
         public Task<User?> GetByEmailAsync(string email, CancellationToken ct) => _inner.GetByEmailAsync(email, ct);
         public Task AddAsync(User user, CancellationToken ct) => _inner.AddAsync(user, ct);
     }
@@ -165,6 +167,7 @@ public class DuplicateKeyTests
 
         public Task<List<Category>> GetAllAsync(CancellationToken ct) => _inner.GetAllAsync(ct);
         public Task<Category?> GetByIdAsync(int id, CancellationToken ct) => _inner.GetByIdAsync(id, ct);
+        public Task<Category?> GetByIdReadOnlyAsync(int id, CancellationToken ct) => _inner.GetByIdReadOnlyAsync(id, ct);
         public Task<List<Category>> GetByIdsAsync(IEnumerable<int> ids, CancellationToken ct) => _inner.GetByIdsAsync(ids, ct);
         public Task<bool> HasEventsAsync(int id, CancellationToken ct) => _inner.HasEventsAsync(id, ct);
         public Task AddAsync(Category category, CancellationToken ct) => _inner.AddAsync(category, ct);

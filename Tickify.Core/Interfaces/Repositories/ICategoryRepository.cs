@@ -5,7 +5,11 @@ namespace Tickify.Core.Interfaces.Repositories;
 public interface ICategoryRepository
 {
     Task<List<Category>> GetAllAsync(CancellationToken ct);
+    /// <summary>Tracked, for update and delete.</summary>
     Task<Category?> GetByIdAsync(int id, CancellationToken ct);
+
+    /// <summary>No tracking, for display.</summary>
+    Task<Category?> GetByIdReadOnlyAsync(int id, CancellationToken ct);
     Task<List<Category>> GetByIdsAsync(IEnumerable<int> ids, CancellationToken ct);
     Task<bool> NameExistsAsync(string name, int? excludeId, CancellationToken ct);
     Task<bool> HasEventsAsync(int id, CancellationToken ct);

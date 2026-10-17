@@ -1,3 +1,5 @@
+using Tickify.API.Extensions;
+
 namespace Tickify.API.Middleware;
 
 /// <summary>
@@ -6,7 +8,7 @@ namespace Tickify.API.Middleware;
 /// </summary>
 public class ExceptionHandlingMiddleware
 {
-    private const int ClientClosedRequest = 499;
+    public const int ClientClosedRequest = 499;
 
     private readonly RequestDelegate _next;
     private readonly ILogger<ExceptionHandlingMiddleware> _logger;
@@ -34,11 +36,14 @@ public class ExceptionHandlingMiddleware
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {
             // The client went away; that is not a server error.
+            using var scope = _logger.BeginCorrelationScope(context.GetCorrelationId());
             _logger.LogDebug("Request {Method} {Path} was cancelled by the client", context.Request.Method, context.Request.Path.Value);
             context.Response.StatusCode = ClientClosedRequest;
         }
         catch (Exception ex)
         {
+            // This middleware is outside the correlation middleware, so the id (kept in HttpContext.Items) is re-opened here.
+            using var scope = _logger.BeginCorrelationScope(context.GetCorrelationId());
             _logger.LogError(ex, "Unhandled exception for {Method} {Path}", context.Request.Method, context.Request.Path.Value);
 
             if (context.Response.HasStarted)

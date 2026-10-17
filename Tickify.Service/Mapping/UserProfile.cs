@@ -1,5 +1,6 @@
 using AutoMapper;
 using Tickify.Core.DTOs.Auth;
+using Tickify.Core.DTOs.Users;
 using Tickify.Core.Entities;
 
 namespace Tickify.Service.Mapping;
@@ -18,7 +19,10 @@ public class UserProfile : Profile
 
         // Token and ExpiresAt are filled in by ITokenService.
         CreateMap<User, AuthResponse>()
+            .ForMember(d => d.UserId, o => o.MapFrom(s => s.Id))
             .ForMember(d => d.Token, o => o.Ignore())
             .ForMember(d => d.ExpiresAt, o => o.Ignore());
+
+        CreateMap<User, UserResponse>();
     }
 }

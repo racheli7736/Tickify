@@ -10,6 +10,9 @@ public class UserRepository : IUserRepository
 
     public UserRepository(AppDbContext db) => _db = db;
 
+    public Task<User?> GetByIdAsync(int id, CancellationToken ct) =>
+        _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id, ct);
+
     public Task<User?> GetByEmailAsync(string email, CancellationToken ct) =>
         _db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email, ct);
 

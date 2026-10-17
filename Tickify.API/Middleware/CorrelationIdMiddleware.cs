@@ -1,9 +1,10 @@
 using System.Diagnostics;
+using Tickify.API.Extensions;
 
 namespace Tickify.API.Middleware;
 
 /// <summary>
-/// Gives every request a correlation id (from the X-Correlation-Id header or a new Guid), returns it in the
+/// Runs inside the exception-handling middleware. Gives every request a correlation id (from the X-Correlation-Id header or a new Guid), returns it in the
 /// response, puts it in the logging scope of the whole request and logs one line per request.
 /// </summary>
 public class CorrelationIdMiddleware
@@ -27,18 +28,31 @@ public class CorrelationIdMiddleware
         context.Items[ItemKey] = correlationId;
         context.Response.Headers[HeaderName] = correlationId;
 
-        using (_logger.BeginScope("CorrelationId:{CorrelationId}", correlationId))
+        using (_logger.BeginCorrelationScope(correlationId))
         {
             var stopwatch = Stopwatch.StartNew();
+            var statusCode = 0;
             try
             {
                 await _next(context);
+                statusCode = context.Response.StatusCode;
+            }
+            catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+            {
+                // The exception middleware (outside this one) has not set the status yet: log what the client will get.
+                statusCode = ExceptionHandlingMiddleware.ClientClosedRequest;
+                throw;
+            }
+            catch
+            {
+                statusCode = StatusCodes.Status500InternalServerError;
+                throw;
             }
             finally
             {
                 _logger.LogInformation(
                     "HTTP {Method} {Path} responded {StatusCode} in {ElapsedMs} ms",
-                    context.Request.Method, context.Request.Path.Value, context.Response.StatusCode, stopwatch.ElapsedMilliseconds);
+                    context.Request.Method, context.Request.Path.Value, statusCode, stopwatch.ElapsedMilliseconds);
             }
         }
     }

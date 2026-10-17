@@ -36,6 +36,14 @@ public class CategoryService : ICategoryService
         return ServiceResult<List<CategoryResponse>>.Success(_mapper.Map<List<CategoryResponse>>(categories));
     }
 
+    public async Task<ServiceResult<CategoryResponse>> GetByIdAsync(int id, CancellationToken ct)
+    {
+        var category = await _categories.GetByIdReadOnlyAsync(id, ct);
+        return category is null
+            ? ServiceResult<CategoryResponse>.Fail(ErrorType.NotFound, "Category not found.")
+            : ServiceResult<CategoryResponse>.Success(_mapper.Map<CategoryResponse>(category));
+    }
+
     public async Task<ServiceResult<CategoryResponse>> CreateAsync(CategoryRequest request, CancellationToken ct)
     {
         var name = request.Name.Trim();

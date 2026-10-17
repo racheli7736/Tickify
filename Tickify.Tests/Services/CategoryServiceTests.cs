@@ -154,4 +154,25 @@ public class CategoryServiceTests
 
         Assert.Equal(ErrorType.Conflict, result.ErrorType);
     }
+
+    [Fact]
+    public async Task GetByIdAsync_ExistingCategory_ReturnsItWithoutTracking()
+    {
+        _categories.Setup(c => c.GetByIdReadOnlyAsync(3, It.IsAny<CancellationToken>())).ReturnsAsync(new Category { Id = 3, Name = "Music" });
+
+        var result = await Sut().GetByIdAsync(3, CancellationToken.None);
+
+        Assert.Equal("Music", result.Value!.Name);
+        _categories.Verify(c => c.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);   // the tracked variant is for updates only
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_UnknownCategory_ReturnsNotFound()
+    {
+        _categories.Setup(c => c.GetByIdReadOnlyAsync(It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync((Category?)null);
+
+        var result = await Sut().GetByIdAsync(9, CancellationToken.None);
+
+        Assert.Equal(ErrorType.NotFound, result.ErrorType);
+    }
 }
