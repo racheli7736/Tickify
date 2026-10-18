@@ -21,6 +21,24 @@ if (string.IsNullOrWhiteSpace(builder.Configuration.GetConnectionString("Default
     throw new InvalidOperationException(
         "ConnectionStrings:Default is missing. Set it with dotnet user-secrets (see README).");
 
+// Hosting platforms (Render, Heroku...) hand out the database as a URL: postgresql://user:password@host:port/db.
+// Npgsql wants key=value pairs, so convert it. Normal key=value connection strings pass through untouched.
+var rawConnection = builder.Configuration.GetConnectionString("Default")!;
+if (rawConnection.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+    rawConnection.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+{
+    var uri = new Uri(rawConnection);
+    var credentials = uri.UserInfo.Split(':', 2);
+    builder.Configuration["ConnectionStrings:Default"] = new Npgsql.NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Database = uri.AbsolutePath.TrimStart('/'),
+        Username = Uri.UnescapeDataString(credentials[0]),
+        Password = credentials.Length > 1 ? Uri.UnescapeDataString(credentials[1]) : null,
+    }.ConnectionString;
+}
+
 builder.Services.Configure<JwtSettings>(jwtSection);
 
 builder.Services
@@ -46,22 +64,27 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseStatusCodePages();
 
-if (app.Environment.IsDevelopment())
-{
-    // Create / update the database (and seed data) automatically on startup.
+// Create / update the database (and seed data) on startup: always in Development, and in any other environment
+// only when explicitly switched on (Database__MigrateOnStartup=true, used by the Render deployment).
+if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
     await app.Services.MigrateDatabaseAsync();
 
+if (app.Environment.IsDevelopment())
+{
     app.UseSwagger();
     app.UseSwaggerUI(options => options.EnablePersistAuthorization()); // keep the token across page reloads
 }
 
-app.UseHttpsRedirection();
+// In production TLS is terminated by the hosting platform's proxy, so the app itself only speaks HTTP there.
+if (app.Environment.IsDevelopment())
+    app.UseHttpsRedirection();
 
 app.UseCors(Tickify.API.Extensions.ServiceCollectionExtensions.CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "ok" })); // used by the hosting platform's health check
 
 app.Run();
 

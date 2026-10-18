@@ -1,0 +1,27 @@
+# Render Blueprint for the Tickify API + PostgreSQL (the React site has its own render.yaml in Tickify-Client).
+# Secrets are never stored here: Jwt__Key is entered in the dashboard, the connection string comes from the database.
+databases:
+  - name: tickify-db
+    plan: free
+    databaseName: tickify
+    user: tickify
+
+services:
+  - type: web
+    name: tickify-api
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: Database__MigrateOnStartup
+        value: "true"
+      - key: ConnectionStrings__Default
+        fromDatabase:
+          name: tickify-db
+          property: connectionString
+      - key: Jwt__Key        # 64+ random characters; entered once in the Render dashboard (sync: false = never stored in git)
+        sync: false
+      - key: Cors__AllowedOrigins__0
+        value: https://tickify-client.onrender.com
